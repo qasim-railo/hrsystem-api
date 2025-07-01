@@ -72,6 +72,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         builder.Services.AddScoped<IGratuityReportService, GratuityReportService>();
         builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<IIncrementHistoryService, IncrementHistoryService>();
+builder.Services.AddScoped<CloudinaryService>();
 
 
 
