@@ -18,6 +18,10 @@ namespace HRSystem.API.Services
 
         public async Task<string> UploadAsync(EmployeeDocumentUploadDto dto)
         {
+            if (string.IsNullOrEmpty(_env.WebRootPath))
+            {
+                throw new InvalidOperationException("WebRootPath is not set. Ensure wwwroot folder exists and environment is configured correctly.");
+            }
             var uploadFolder = Path.Combine(_env.WebRootPath, "Uploads", "Employees", dto.EmployeeId.ToString());
             Directory.CreateDirectory(uploadFolder);
 

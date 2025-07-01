@@ -24,19 +24,23 @@ namespace HRSystem.API.Services
             await _context.SaveChangesAsync();
         }
 
+        public async Task<List<IncrementHistoryDto>> GetAllAsync()
+        {
+            var entities = await _context.IncrementHistories
+                .Include(x => x.Employee) // ✅ Include related Employee
+                .ToListAsync();
+
+            return _mapper.Map<List<IncrementHistoryDto>>(entities);
+        }
+
         public async Task<List<IncrementHistoryDto>> GetByEmployeeAsync(int employeeId)
         {
             var entities = await _context.IncrementHistories
-                .Where(i => i.EmployeeId == employeeId)
+                .Where(x => x.EmployeeId == employeeId)
+                .Include(x => x.Employee) // ✅ Include Employee
                 .ToListAsync();
-            return _mapper.Map<List<IncrementHistoryDto>>(entities);
-        }
 
-        public async Task<List<IncrementHistoryDto>> GetAllAsync()
-        {
-            var entities = await _context.IncrementHistories.ToListAsync();
             return _mapper.Map<List<IncrementHistoryDto>>(entities);
         }
     }
-
 }

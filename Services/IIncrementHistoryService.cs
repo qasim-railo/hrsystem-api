@@ -1,5 +1,4 @@
-﻿using HRSystem.API.Models;
-
+﻿using HRSystem.API.DTOs; 
 namespace HRSystem.API.Services
 {
     public interface IIncrementHistoryService

@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace HRSystem.API.Controllers
 {
     [ApiController]
-    [Route("api/assests")]
+    [Route("api/assets")]
     public class AssetsController : ControllerBase
     {
         private readonly IAssetsService _service;

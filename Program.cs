@@ -71,6 +71,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         builder.Services.AddScoped<IFinalSettlementService, FinalSettlementService>();
         builder.Services.AddScoped<IGratuityReportService, GratuityReportService>();
         builder.Services.AddScoped<IReportService, ReportService>();
+builder.Services.AddScoped<IIncrementHistoryService, IncrementHistoryService>();
+
 
 
 // Add services to the container.

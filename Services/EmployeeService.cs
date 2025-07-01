@@ -1,4 +1,5 @@
-﻿using HRSystem.API.Data;
+﻿using AutoMapper;
+using HRSystem.API.Data;
 using HRSystem.API.DTOs;
 using HRSystem.API.Models;
 using Microsoft.EntityFrameworkCore;
@@ -8,45 +9,26 @@ namespace HRSystem.API.Services
     public class EmployeeService : IEmployeeService
     {
         private readonly AppDbContext _context;
-
-        public EmployeeService(AppDbContext context)
+        private readonly IMapper _mapper;
+        public EmployeeService(AppDbContext context, IMapper mapper)
         {
             _context = context;
+            _mapper = mapper;
         }
 
         public async Task<List<EmployeeDto>> GetAllAsync()
         {
-            return await _context.Employees
-                .Select(e => new EmployeeDto
-                {
-                   EmployeeId = e.EmployeeId,
-                    CompanyId = e.CompanyId,
-                    EmployeeCode = e.EmployeeCode,
-                    FirstName = e.FirstName,
-                    LastName = e.LastName,
-                    Email = e.Email,
-                    PassportNumber = e.PassportNumber,
-                    DateOfBirth = e.DateOfBirth
-                })
-                .ToListAsync();
+            var e = await _context.Employees.ToListAsync();
+            return _mapper.Map<List<EmployeeDto>>(e);
+            
         }
 
         public async Task<EmployeeDto> GetByIdAsync(int id)
         {
             var e = await _context.Employees.FindAsync(id);
             if (e == null) return null;
-
-            return new EmployeeDto
-            {
-                EmployeeId = e.EmployeeId,
-                CompanyId = e.CompanyId,
-                EmployeeCode = e.EmployeeCode,
-                FirstName = e.FirstName,
-                LastName = e.LastName,
-                Email = e.Email,
-                PassportNumber = e.PassportNumber,
-                DateOfBirth = e.DateOfBirth
-            };
+            return _mapper.Map<EmployeeDto>(e);
+          
         }
 
         public async Task<EmployeeDto> CreateAsync(EmployeeDto dto)
@@ -88,7 +70,14 @@ namespace HRSystem.API.Services
 
       public async Task<EmployeeDto> UpdateAsync(int id, EmployeeDto dto)
 {
-    var e = await _context.Employees.FindAsync(id);
+            //var employee = await _context.Employees.FindAsync(id);
+            //if (employee == null) return null;
+
+            //_mapper.Map(dto, employee);
+            //await _context.SaveChangesAsync();
+            //return _mapper.Map<EmployeeDto>(employee);
+
+            var e = await _context.Employees.FindAsync(id);
     if (e == null) return null;
 
     e.CompanyId = dto.CompanyId;

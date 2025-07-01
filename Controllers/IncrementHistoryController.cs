@@ -1,4 +1,5 @@
-﻿using HRSystem.API.Models;
+﻿
+using HRSystem.API.DTOs;
 using HRSystem.API.Services;
 using Microsoft.AspNetCore.Mvc;
 
