@@ -16,7 +16,7 @@ public class CloudinaryService
         _cloudinary = new Cloudinary(account);
     }
 
-    public async Task<string> UploadImageAsync(IFormFile file)
+    public async Task<CloudinaryUploadResult> UploadImageAsync(IFormFile file)
     {
         var uploadParams = new ImageUploadParams
         {
@@ -25,6 +25,26 @@ public class CloudinaryService
         };
 
         var result = await _cloudinary.UploadAsync(uploadParams);
-        return result.SecureUrl.ToString();
+
+        return new CloudinaryUploadResult
+        {
+            Url = result.SecureUrl.ToString(),
+            PublicId = result.PublicId
+        };
     }
+    public async Task<bool> DeleteImageAsync(string publicId)
+    {
+        var deletionParams = new DeletionParams(publicId);
+        var result = await _cloudinary.DestroyAsync(deletionParams);
+
+        return result.Result == "ok";
+    }
+
+
+}
+
+public class CloudinaryUploadResult
+{
+    public string Url { get; set; }
+    public string PublicId { get; set; }
 }
