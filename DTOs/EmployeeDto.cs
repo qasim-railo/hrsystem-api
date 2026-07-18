@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
 namespace HRSystem.API.DTOs
@@ -6,7 +8,7 @@ namespace HRSystem.API.DTOs
     {
         public int CompanyId { get; set; }
         public int EmployeeId { get; set; }
-        [Required(ErrorMessage = "DepartmentId is required")] 
+        [Required(ErrorMessage = "DepartmentId is required")]
         public int DepartmentId { get; set; }
         public string EmployeeCode { get; set; } = string.Empty;
         public string FirstName { get; set; } = string.Empty;
@@ -21,12 +23,17 @@ namespace HRSystem.API.DTOs
         public string EmergencyPhone { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public string PassportNumber { get; set; } = string.Empty;
-        public DateTime PassportExpiry { get; set; }
+        public DateTime? PassportExpiry { get; set; }
         public string PassportCountry { get; set; } = string.Empty;
         public string PhotoPath { get; set; } = string.Empty;
+        public HRSystem.API.Models.EmployeeStatus Status { get; set; } = HRSystem.API.Models.EmployeeStatus.Draft;
 
-            // New
-            public HRSystem.API.Models.EmployeeStatus Status { get; set; } = HRSystem.API.Models.EmployeeStatus.Draft;
-        }
-
+        public string CompanyName { get; set; } = string.Empty;
+        public string DepartmentName { get; set; } = string.Empty;
+        public string Category { get; set; } = string.Empty;
+        public string Designation { get; set; } = string.Empty;
+        public DateTime? JoiningDate { get; set; }
+        public string NationalId { get; set; } = string.Empty;
+        public List<string> MatchedFields { get; set; } = new();
+    }
 }

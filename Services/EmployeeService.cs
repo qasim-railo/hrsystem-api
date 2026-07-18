@@ -107,7 +107,12 @@ namespace HRSystem.API.Services
                 PassportExpiry = e.PassportExpiry,
                 PassportCountry = e.PassportCountry,
                 PhotoPath = e.PhotoPath,
-                Status = e.Status
+                Status = e.Status,
+                CompanyName = e.Company?.Name ?? string.Empty,
+                DepartmentName = e.Department?.Name ?? string.Empty,
+                Category = e.EmploymentDetail?.Category ?? string.Empty,
+                Designation = e.EmploymentDetail?.OfferDesignation ?? string.Empty,
+                JoiningDate = e.EmploymentDetail?.JoiningDate
             }).ToList();
 
             return (dtos, total);
@@ -115,7 +120,12 @@ namespace HRSystem.API.Services
 
         public async Task<EmployeeDto> GetByIdAsync(int id)
         {
-            var e = await _context.Employees.FindAsync(id);
+            var e = await _context.Employees
+                .Include(x => x.Company)
+                .Include(x => x.Department)
+                .Include(x => x.EmploymentDetail)
+                .FirstOrDefaultAsync(x => x.EmployeeId == id);
+
             if (e == null) return null;
             return _mapper.Map<EmployeeDto>(e);
         }
@@ -143,7 +153,7 @@ namespace HRSystem.API.Services
                 EmergencyPhone = dto.EmergencyPhone,
                 Email = dto.Email,
                 PassportNumber = dto.PassportNumber,
-                PassportExpiry = dto.PassportExpiry,
+                PassportExpiry = dto.PassportExpiry ?? DateTime.MinValue,
                 PassportCountry = dto.PassportCountry,
                 PhotoPath = dto.PhotoPath,
                 Status = dto.Status
@@ -175,7 +185,7 @@ namespace HRSystem.API.Services
             e.EmergencyPhone = dto.EmergencyPhone;
             e.Email = dto.Email;
             e.PassportNumber = dto.PassportNumber;
-            e.PassportExpiry = dto.PassportExpiry;
+            e.PassportExpiry = dto.PassportExpiry ?? DateTime.MinValue;
             e.PassportCountry = dto.PassportCountry;
             e.PhotoPath = dto.PhotoPath;
 
@@ -210,7 +220,7 @@ namespace HRSystem.API.Services
 
             var candidates = new List<(Employee emp, int score, List<string> matched)>();
 
-            var employees = await _context.Employees.Include(e => e.EmploymentDetail).ToListAsync();
+            var employees = await _context.Employees.Include(e => e.EmploymentDetail).Include(e => e.Company).Include(e => e.Department).ToListAsync();
 
             foreach (var e in employees)
             {
@@ -262,7 +272,14 @@ namespace HRSystem.API.Services
                     PassportExpiry = c.emp.PassportExpiry,
                     PassportCountry = c.emp.PassportCountry,
                     PhotoPath = c.emp.PhotoPath,
-                    Status = c.emp.Status
+                    Status = c.emp.Status,
+                    CompanyName = c.emp.Company?.Name ?? string.Empty,
+                    DepartmentName = c.emp.Department?.Name ?? string.Empty,
+                    Category = c.emp.EmploymentDetail?.Category ?? string.Empty,
+                    Designation = c.emp.EmploymentDetail?.OfferDesignation ?? string.Empty,
+                    JoiningDate = c.emp.EmploymentDetail?.JoiningDate,
+                    NationalId = c.emp.EmploymentDetail?.LaborCardNo ?? string.Empty,
+                    MatchedFields = c.matched
                 }).ToList()
             };
 

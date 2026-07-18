@@ -10,7 +10,14 @@ namespace HRSystem.API.Helpers
         public MappingProfile()
         {
             
-            CreateMap<Employee, EmployeeDto>().ReverseMap();
+            CreateMap<Employee, EmployeeDto>()
+                .ForMember(dest => dest.CompanyName, opt => opt.MapFrom(src => src.Company != null ? src.Company.Name : string.Empty))
+                .ForMember(dest => dest.DepartmentName, opt => opt.MapFrom(src => src.Department != null ? src.Department.Name : string.Empty))
+                .ForMember(dest => dest.Category, opt => opt.MapFrom(src => src.EmploymentDetail != null ? src.EmploymentDetail.Category : string.Empty))
+                .ForMember(dest => dest.Designation, opt => opt.MapFrom(src => src.EmploymentDetail != null ? src.EmploymentDetail.OfferDesignation : string.Empty))
+                .ForMember(dest => dest.JoiningDate, opt => opt.MapFrom(src => src.EmploymentDetail != null ? src.EmploymentDetail.JoiningDate : (DateTime?)null))
+                .ForMember(dest => dest.NationalId, opt => opt.MapFrom(src => src.EmploymentDetail != null ? src.EmploymentDetail.LaborCardNo : string.Empty))
+                .ReverseMap();
             CreateMap<EmployeeAsset, EmployeeAssetDto>().ReverseMap();
             
             CreateMap<Asset, AssetDto>().ReverseMap();
