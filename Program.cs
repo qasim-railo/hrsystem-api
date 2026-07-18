@@ -42,7 +42,19 @@ builder.Services.AddAuthentication("Bearer")
         };
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("Employees.View", policy => policy.RequireRole("Admin"));
+    options.AddPolicy("Employees.Create", policy => policy.RequireRole("Admin"));
+    options.AddPolicy("Employees.Edit", policy => policy.RequireRole("Admin"));
+    options.AddPolicy("Employees.ChangeStatus", policy => policy.RequireRole("Admin"));
+    options.AddPolicy("Employees.OverrideDuplicate", policy => policy.RequireRole("Admin"));
+    options.AddPolicy("Employees.Export", policy => policy.RequireRole("Admin"));
+    options.AddPolicy("Employees.ViewSensitiveData", policy => policy.RequireRole("Admin"));
+});
+
+// register audit service
+builder.Services.AddScoped<IAuditService, AuditService>();
 
 
 
@@ -55,22 +67,22 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // registering Employee service 
 
 //Custom Services
-        builder.Services.AddScoped<IEmployeeService, EmployeeService>();
-        builder.Services.AddScoped<IEmployeeService, EmployeeService>();
-            builder.Services.AddScoped<ICompaniesService, CompaniesService>();
-            builder.Services.AddScoped<IDepartmentsService, DepartmentsService>();
-            builder.Services.AddScoped<IEmploymentDetailsService, EmploymentDetailsService>();
-            builder.Services.AddScoped<IEmployeeDocumentsService, EmployeeDocumentsService>();
-            builder.Services.AddScoped<IAssetsService, AssetsService>();
-            builder.Services.AddScoped<IEmployeeAssetsService, EmployeeAssetsService>();
-            builder.Services.AddScoped<IShiftService, ShiftService>();
-            builder.Services.AddScoped<IEmployeeShiftService, EmployeeShiftService>();
-            builder.Services.AddScoped<IAttendanceService, AttendanceService>();
-        builder.Services.AddScoped<IPayrollService, PayrollService>();
-        builder.Services.AddScoped<ILeaveRequestService, LeaveRequestService>();
-        builder.Services.AddScoped<IFinalSettlementService, FinalSettlementService>();
-        builder.Services.AddScoped<IGratuityReportService, GratuityReportService>();
-        builder.Services.AddScoped<IReportService, ReportService>();
+builder.Services.AddScoped<IEmployeeService, EmployeeService>();
+builder.Services.AddScoped<IEmployeeService, EmployeeService>();
+builder.Services.AddScoped<ICompaniesService, CompaniesService>();
+builder.Services.AddScoped<IDepartmentsService, DepartmentsService>();
+builder.Services.AddScoped<IEmploymentDetailsService, EmploymentDetailsService>();
+builder.Services.AddScoped<IEmployeeDocumentsService, EmployeeDocumentsService>();
+builder.Services.AddScoped<IAssetsService, AssetsService>();
+builder.Services.AddScoped<IEmployeeAssetsService, EmployeeAssetsService>();
+builder.Services.AddScoped<IShiftService, ShiftService>();
+builder.Services.AddScoped<IEmployeeShiftService, EmployeeShiftService>();
+builder.Services.AddScoped<IAttendanceService, AttendanceService>();
+builder.Services.AddScoped<IPayrollService, PayrollService>();
+builder.Services.AddScoped<ILeaveRequestService, LeaveRequestService>();
+builder.Services.AddScoped<IFinalSettlementService, FinalSettlementService>();
+builder.Services.AddScoped<IGratuityReportService, GratuityReportService>();
+builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<IIncrementHistoryService, IncrementHistoryService>();
 builder.Services.AddScoped<CloudinaryService>();
 

@@ -26,10 +26,21 @@ namespace HRSystem.API.Data
         public DbSet<GratuityReport> GratuityReports { get; set; }
         public DbSet<IncrementHistory> IncrementHistories { get; set; }
 
+                public DbSet<EmployeeStatusHistory> EmployeeStatusHistories { get; set; }
+                        public DbSet<AuditLog> AuditLogs { get; set; }
 
-        //ON MODEL CREATING
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
-        {
+                //ON MODEL CREATING
+                protected override void OnModelCreating(ModelBuilder modelBuilder)
+                {
+                    modelBuilder.Entity<EmployeeStatusHistory>()
+                        .HasKey(h => h.EmployeeStatusHistoryId);
+
+                    modelBuilder.Entity<EmployeeStatusHistory>()
+                        .HasOne(h => h.Employee)
+                        .WithMany(e => e.StatusHistories)
+                        .HasForeignKey(h => h.EmployeeId)
+                        .OnDelete(DeleteBehavior.Cascade);
+
             modelBuilder.Entity<EmployeeShift>()
        .HasOne(es => es.Employee)
        .WithMany(e => e.EmployeeShifts)

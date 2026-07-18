@@ -24,6 +24,9 @@ namespace HRSystem.API.DTOs
         public DateTime PassportExpiry { get; set; }
         public string PassportCountry { get; set; } = string.Empty;
         public string PhotoPath { get; set; } = string.Empty;
-    }
+
+            // New
+            public HRSystem.API.Models.EmployeeStatus Status { get; set; } = HRSystem.API.Models.EmployeeStatus.Draft;
+        }
 
 }

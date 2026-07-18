@@ -26,11 +26,16 @@ namespace HRSystem.API.Models
         public string PassportCountry { get; set; }
         public string PhotoPath { get; set; }
 
-        public EmploymentDetail EmploymentDetail { get; set; }
-        public ICollection<EmployeeDocument> EmployeeDocuments { get; set; }
-        public ICollection<EmployeeAsset> EmployeeAssets { get; set; }
+            // New canonical status for employee
+            public EmployeeStatus Status { get; set; } = EmployeeStatus.Draft;
 
-        public ICollection<EmployeeShift> EmployeeShifts { get; set; }
+            public EmploymentDetail EmploymentDetail { get; set; }
+            public ICollection<EmployeeDocument> EmployeeDocuments { get; set; }
+            public ICollection<EmployeeAsset> EmployeeAssets { get; set; }
 
-    }
+            public ICollection<EmployeeShift> EmployeeShifts { get; set; }
+
+            // Status history
+            public ICollection<EmployeeStatusHistory> StatusHistories { get; set; }
+        }
 }
