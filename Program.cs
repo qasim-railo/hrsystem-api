@@ -89,6 +89,9 @@ builder.Services.AddScoped<IGratuityReportService, GratuityReportService>();
 builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<IIncrementHistoryService, IncrementHistoryService>();
 builder.Services.AddScoped<CloudinaryService>();
+builder.Services.Configure<FileStorageOptions>(
+    builder.Configuration.GetSection(FileStorageOptions.SectionName));
+builder.Services.AddSingleton<IMalwareScanner, NoOpMalwareScanner>();
 builder.Services.AddScoped<IFileService, FileService>();
 
 
