@@ -25,3 +25,14 @@ public class FileRecordDto
     public int Version { get; set; }
     public string Status { get; set; } = string.Empty;
 }
+
+public class FileSearchRequest
+{
+    public string? EntityType { get; set; }
+    public string? EntityId { get; set; }
+    public string? DocumentType { get; set; }
+    public string? Status { get; set; }
+    public string? Search { get; set; }
+    public DateTime? FromDate { get; set; }
+    public DateTime? ToDate { get; set; }
+}

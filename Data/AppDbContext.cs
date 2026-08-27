@@ -150,6 +150,12 @@ namespace HRSystem.API.Data
                     modelBuilder.Entity<CustomFieldValue>().HasIndex(x => new { x.TenantId, x.EmployeeId, x.CustomFieldDefinitionId }).IsUnique();
                     modelBuilder.Entity<FileRecord>().HasKey(x => x.FileId);
                     modelBuilder.Entity<FileRecord>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<FileRecord>().HasIndex(x => x.TenantId);
+                    modelBuilder.Entity<FileRecord>().HasIndex(x => x.EntityType);
+                    modelBuilder.Entity<FileRecord>().HasIndex(x => x.EntityId);
+                    modelBuilder.Entity<FileRecord>().HasIndex(x => x.DocumentType);
+                    modelBuilder.Entity<FileRecord>().HasIndex(x => x.UploadedAt);
+                    modelBuilder.Entity<FileRecord>().HasIndex(x => x.Status);
                     modelBuilder.Entity<CustomFieldDefinition>().Property(x => x.FieldType).HasConversion<string>().HasMaxLength(32);
                     modelBuilder.Entity<CustomFieldValue>().HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Cascade);
                     modelBuilder.Entity<CustomFieldValue>().HasOne(x => x.Definition).WithMany(x => x.Values).HasForeignKey(x => x.CustomFieldDefinitionId).OnDelete(DeleteBehavior.Cascade);

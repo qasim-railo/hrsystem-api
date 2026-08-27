@@ -31,6 +31,10 @@ public sealed class FilesController : ControllerBase
     public async Task<ActionResult<FileRecordDto>> Get(int fileId, CancellationToken cancellationToken)
         => (await _files.GetAsync(fileId, cancellationToken)) is { } result ? Ok(result) : NotFound();
 
+    [HttpGet]
+    public async Task<ActionResult<IReadOnlyList<FileRecordDto>>> Search([FromQuery] FileSearchRequest request, CancellationToken cancellationToken)
+        => Ok(await _files.SearchAsync(request, cancellationToken));
+
     [HttpGet("{fileId:int}/download")]
     public async Task<IActionResult> Download(int fileId, CancellationToken cancellationToken)
     {

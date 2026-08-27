@@ -3,6 +3,7 @@ using HRSystem.API.DTOs;
 using HRSystem.API.Models;
 using HRSystem.API.Tenancy;
 using Microsoft.EntityFrameworkCore;
+using System.Text.RegularExpressions;
 
 namespace HRSystem.API.Services;
 
@@ -26,10 +27,12 @@ public sealed class FileService : IFileService
         if (request.File is null || request.File.Length == 0) throw new InvalidOperationException("A non-empty file is required.");
         if (string.IsNullOrWhiteSpace(request.EntityType) || string.IsNullOrWhiteSpace(request.EntityId))
             throw new InvalidOperationException("EntityType and EntityId are required.");
-        if (request.EntityType.Equals("Employee", StringComparison.OrdinalIgnoreCase) &&
-            (!int.TryParse(request.EntityId, out var employeeId) ||
-             !await _db.Employees.AnyAsync(x => x.EmployeeId == employeeId, cancellationToken)))
-            throw new InvalidOperationException("The employee does not exist in the current tenant.");
+        var entityType = request.EntityType.Trim();
+        var entityId = request.EntityId.Trim();
+        if (entityType.Length > 128 || entityId.Length > 128 ||
+            !Regex.IsMatch(entityType, "^[A-Za-z][A-Za-z0-9_.-]*$") ||
+            !Regex.IsMatch(entityId, "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$"))
+            throw new InvalidOperationException("EntityType or EntityId has an invalid format.");
         if (request.File.Length > 25 * 1024 * 1024) throw new InvalidOperationException("The file exceeds the 25 MB limit.");
 
         var extension = Path.GetExtension(request.File.FileName);
@@ -50,8 +53,8 @@ public sealed class FileService : IFileService
         var now = DateTime.UtcNow;
         var record = new FileRecord
         {
-            EntityType = request.EntityType.Trim(),
-            EntityId = request.EntityId.Trim(),
+            EntityType = entityType,
+            EntityId = entityId,
             DocumentType = request.DocumentType?.Trim() ?? string.Empty,
             OriginalFileName = Path.GetFileName(request.File.FileName),
             StoredFileName = storedName,
@@ -86,6 +89,39 @@ public sealed class FileService : IFileService
             Size = x.Size, Extension = x.Extension, UploadedBy = x.UploadedBy, UploadedAt = x.UploadedAt,
             UpdatedAt = x.UpdatedAt, Version = x.Version, Status = x.Status
         }).SingleOrDefaultAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<FileRecordDto>> SearchAsync(FileSearchRequest request, CancellationToken cancellationToken = default)
+    {
+        var query = _db.FileRecords.AsNoTracking().AsQueryable();
+        if (!string.IsNullOrWhiteSpace(request.EntityType))
+           query = query.Where(x => x.EntityType == request.EntityType.Trim());
+        if (!string.IsNullOrWhiteSpace(request.EntityId))
+           query = query.Where(x => x.EntityId == request.EntityId.Trim());
+        if (!string.IsNullOrWhiteSpace(request.DocumentType))
+           query = query.Where(x => x.DocumentType == request.DocumentType.Trim());
+        if (!string.IsNullOrWhiteSpace(request.Status))
+           query = query.Where(x => x.Status == request.Status.Trim());
+        if (!string.IsNullOrWhiteSpace(request.Search))
+        {
+           var search = request.Search.Trim();
+           query = query.Where(x => x.OriginalFileName.Contains(search) ||
+               x.DocumentType.Contains(search) || x.EntityType.Contains(search) ||
+               x.EntityId.Contains(search) || x.UploadedBy.Contains(search));
+        }
+        if (request.FromDate is DateTime from)
+           query = query.Where(x => x.UploadedAt >= from);
+        if (request.ToDate is DateTime to)
+           query = query.Where(x => x.UploadedAt <= to);
+
+        return await query.OrderByDescending(x => x.UploadedAt).Take(500)
+           .Select(x => new FileRecordDto
+           {
+               FileId = x.FileId, TenantId = x.TenantId, EntityType = x.EntityType, EntityId = x.EntityId,
+               DocumentType = x.DocumentType, OriginalFileName = x.OriginalFileName, MimeType = x.MimeType,
+               Size = x.Size, Extension = x.Extension, UploadedBy = x.UploadedBy, UploadedAt = x.UploadedAt,
+               UpdatedAt = x.UpdatedAt, Version = x.Version, Status = x.Status
+           }).ToListAsync(cancellationToken);
+    }
 
     public async Task<bool> DeleteAsync(int fileId, CancellationToken cancellationToken = default)
     {
