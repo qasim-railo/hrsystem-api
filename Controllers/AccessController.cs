@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using HRSystem.API.Tenancy;
 using System.Security.Cryptography;
+using System.Text.Json;
 
 namespace HRSystem.API.Controllers;
 
@@ -45,9 +46,10 @@ public class AccessController : ControllerBase
     public async Task<IActionResult> Roles()
     {
         if (_tenant.TenantId is not int tenantId) return Forbid();
-        return Ok(await _db.Roles.Include(r => r.RolePermissions).ThenInclude(rp => rp.Permission)
+        var roles = await _db.Roles.Include(r => r.RolePermissions).ThenInclude(rp => rp.Permission)
         .Where(r => r.TenantId == tenantId && !r.RolePermissions.Any(rp => rp.Permission.Name == "Platform.Tenants"))
-            .Select(r => new { r.Id, r.Name, Permissions = r.RolePermissions.Select(rp => rp.Permission.Name) }).ToListAsync());
+            .ToListAsync();
+        return Ok(roles.Select(r => new { r.Id, r.Name, Permissions = r.RolePermissions.Select(rp => new { name = rp.Permission.Name, dataScope = NormalizeScope(rp.DataScope), scopeIds = ParseScopeIds(rp.ScopeIdsJson) }) }));
     }
 
     [HttpGet("permissions")]
@@ -62,10 +64,13 @@ public class AccessController : ControllerBase
         if (await _db.Roles.AnyAsync(r => r.TenantId == tenantId && r.Name == dto.Name && !r.RolePermissions.Any(rp => rp.Permission.Name == "Platform.Tenants"))) return Conflict("Role already exists.");
         var permissions = await _db.Permissions.Where(p => dto.Permissions.Contains(p.Name)).ToListAsync();
         if (permissions.Count != dto.Permissions.Distinct().Count() || permissions.Any(p => p.Name == "Platform.Tenants")) return BadRequest("One or more permissions are not available to tenant administrators.");
-        var role = new Role { TenantId = tenantId, Name = dto.Name.Trim(), RolePermissions = permissions.Select(p => new RolePermission { PermissionId = p.Id }).ToList() };
+        var role = new Role { TenantId = tenantId, Name = dto.Name.Trim(), RolePermissions = permissions.Select(p => {
+            var scope = dto.PermissionScopes.FirstOrDefault(s => s.Permission == p.Name);
+            return new RolePermission { PermissionId = p.Id, DataScope = NormalizeScope(scope?.DataScope), ScopeIdsJson = JsonSerializer.Serialize(scope?.ScopeIds ?? new()) };
+        }).ToList() };
         _db.Roles.Add(role);
         await _db.SaveChangesAsync();
-        return Created($"api/access/roles/{role.Id}", new { role.Id, role.Name, Permissions = permissions.Select(p => p.Name) });
+        return Created($"api/access/roles/{role.Id}", new { role.Id, role.Name, Permissions = role.RolePermissions.Select(rp => new { name = permissions.Single(p => p.Id == rp.PermissionId).Name, dataScope = rp.DataScope, scopeIds = JsonSerializer.Deserialize<List<int>>(rp.ScopeIdsJson) ?? new() }) });
     }
 
     [HttpPut("roles/{id}")]
@@ -78,10 +83,16 @@ public class AccessController : ControllerBase
         if (permissions.Count != dto.Permissions.Distinct().Count() || permissions.Any(p => p.Name == "Platform.Tenants")) return BadRequest("One or more permissions are not available to tenant administrators.");
         role.Name = dto.Name.Trim();
         role.RolePermissions.Clear();
-        role.RolePermissions = permissions.Select(p => new RolePermission { RoleId = role.Id, PermissionId = p.Id }).ToList();
+        role.RolePermissions = permissions.Select(p => {
+            var scope = dto.PermissionScopes.FirstOrDefault(s => s.Permission == p.Name);
+            return new RolePermission { RoleId = role.Id, PermissionId = p.Id, DataScope = NormalizeScope(scope?.DataScope), ScopeIdsJson = JsonSerializer.Serialize(scope?.ScopeIds ?? new()) };
+        }).ToList();
         await _db.SaveChangesAsync();
         return NoContent();
     }
+
+    private static string NormalizeScope(string? scope) => scope is "TenantWide" or "SelectedCompanies" or "SelectedBranches" or "SelectedDepartments" or "OwnTeam" or "Self" ? scope : "TenantWide";
+    private static List<int> ParseScopeIds(string? json) => string.IsNullOrWhiteSpace(json) ? new() : JsonSerializer.Deserialize<List<int>>(json) ?? new();
 
     [HttpPost("users")]
     public async Task<IActionResult> CreateUser(CreateUserDto dto)

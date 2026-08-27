@@ -48,6 +48,8 @@ namespace HRSystem.API.Controllers
             claims.AddRange(user.UserRoles.Select(ur => new Claim(ClaimTypes.Role, ur.Role.Name)));
             claims.AddRange(user.UserRoles.SelectMany(ur => ur.Role.RolePermissions)
                 .Select(rp => new Claim("permission", rp.Permission.Name)).DistinctBy(c => c.Value));
+            claims.AddRange(user.UserRoles.SelectMany(ur => ur.Role.RolePermissions)
+                .Select(rp => new Claim("permission_scope", $"{rp.Permission.Name}:{rp.DataScope}:{rp.ScopeIdsJson}")));
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Key));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
