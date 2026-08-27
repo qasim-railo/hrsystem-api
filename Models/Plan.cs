@@ -11,4 +11,5 @@ public class Plan
     public long MaxStorageBytes { get; set; }
     public ICollection<PlanFeature> Features { get; set; } = new List<PlanFeature>();
     public ICollection<Tenant> Tenants { get; set; } = new List<Tenant>();
+    public ICollection<Subscription> Subscriptions { get; set; } = new List<Subscription>();
 }

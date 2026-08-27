@@ -18,6 +18,7 @@ namespace HRSystem.API.Data
         public DbSet<Tenant> Tenants { get; set; }
         public DbSet<Plan> Plans { get; set; }
         public DbSet<PlanFeature> PlanFeatures { get; set; }
+        public DbSet<Subscription> Subscriptions { get; set; }
         public DbSet<Company> Companies { get; set; }
 
         public DbSet<Department> Department { get; set; }
@@ -83,6 +84,10 @@ namespace HRSystem.API.Data
                     modelBuilder.Entity<PlanFeature>().HasIndex(f => new { f.PlanId, f.FeatureCode }).IsUnique();
                     modelBuilder.Entity<Plan>().HasMany(p => p.Features).WithOne(f => f.Plan).HasForeignKey(f => f.PlanId);
                     modelBuilder.Entity<Tenant>().HasOne(t => t.Plan).WithMany(p => p.Tenants).HasForeignKey(t => t.PlanId).OnDelete(DeleteBehavior.Restrict);
+                    modelBuilder.Entity<Subscription>().Property(s => s.Status).HasConversion<string>().HasMaxLength(32);
+                    modelBuilder.Entity<Subscription>().HasOne(s => s.Tenant).WithMany(t => t.Subscriptions).HasForeignKey(s => s.TenantId).OnDelete(DeleteBehavior.Restrict);
+                    modelBuilder.Entity<Subscription>().HasOne(s => s.Plan).WithMany(p => p.Subscriptions).HasForeignKey(s => s.PlanId).OnDelete(DeleteBehavior.Restrict);
+                    modelBuilder.Entity<Subscription>().HasIndex(s => new { s.TenantId, s.Status });
                     modelBuilder.Entity<Plan>().HasData(
                         new Plan { PlanId = 1, Code = "ESSENTIAL", Name = "PeopleOS Essential", MaxEmployees = 50, MaxUsers = 10, MaxBranches = 1, MaxStorageBytes = 5L * 1024 * 1024 * 1024 },
                         new Plan { PlanId = 2, Code = "PROFESSIONAL", Name = "PeopleOS Professional", MaxEmployees = 250, MaxUsers = 50, MaxBranches = 10, MaxStorageBytes = 25L * 1024 * 1024 * 1024 });

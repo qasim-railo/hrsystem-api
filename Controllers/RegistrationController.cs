@@ -57,6 +57,19 @@ public class RegistrationController : ControllerBase
         };
         _db.Tenants.Add(tenant);
         await _db.SaveChangesAsync();
+        _db.Subscriptions.Add(new Subscription
+        {
+            TenantId = tenant.TenantId,
+            PlanId = tenant.PlanId,
+            Status = SubscriptionStatus.Trial,
+            StartDate = tenant.TrialStartDate!.Value,
+            RenewalDate = tenant.TrialEndDate,
+            TrialStartDate = tenant.TrialStartDate,
+            TrialEndDate = tenant.TrialEndDate,
+            BillingCycle = "Monthly",
+            Notes = "Initial 14-day trial."
+        });
+        await _db.SaveChangesAsync();
 
         _currentTenant.SetTenant(tenant.TenantId);
         _db.Companies.Add(new Company

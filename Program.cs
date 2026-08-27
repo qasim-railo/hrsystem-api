@@ -57,6 +57,7 @@ builder.Services.AddAuthorization(options =>
 // register audit service
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<ISubscriptionCheckService, SubscriptionCheckService>();
 
 
 
@@ -115,6 +116,27 @@ using (var scope = app.Services.CreateScope())
         db.Tenants.Add(tenant);
         db.SaveChanges();
     }
+    foreach (var existingTenant in db.Tenants.ToList())
+    {
+        if (!db.Subscriptions.Any(s => s.TenantId == existingTenant.TenantId))
+        {
+            var now = DateTime.UtcNow;
+            db.Subscriptions.Add(new HRSystem.API.Models.Subscription
+            {
+                TenantId = existingTenant.TenantId,
+                PlanId = existingTenant.PlanId,
+                Status = Enum.TryParse<HRSystem.API.Models.SubscriptionStatus>(existingTenant.Status, true, out var status)
+                    ? status : HRSystem.API.Models.SubscriptionStatus.Trial,
+                StartDate = existingTenant.CreatedAt,
+                RenewalDate = existingTenant.TrialEndDate ?? now.AddMonths(1),
+                TrialStartDate = existingTenant.TrialStartDate,
+                TrialEndDate = existingTenant.TrialEndDate,
+                BillingCycle = "Monthly",
+                Notes = "Created during subscription lifecycle initialization."
+            });
+        }
+    }
+    db.SaveChanges();
     var permissionNames = new[] { "Employees.View", "Employees.Create", "Employees.Edit", "Employees.ChangeStatus", "Employees.OverrideDuplicate", "Employees.Export", "Employees.ViewSensitiveData", "Users.Manage" };
     permissionNames = permissionNames.Append("Platform.Tenants").ToArray();
     foreach (var name in permissionNames)

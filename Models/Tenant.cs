@@ -19,4 +19,5 @@ public class Tenant
     public Plan Plan { get; set; } = null!;
     public long StorageUsedBytes { get; set; }
     public string BillingStatus { get; set; } = "Not configured";
+    public ICollection<Subscription> Subscriptions { get; set; } = new List<Subscription>();
 }
