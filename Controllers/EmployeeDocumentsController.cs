@@ -1,31 +1,20 @@
-﻿using CloudinaryDotNet.Actions;
-using HRSystem.API.Data;
 using HRSystem.API.DTOs;
-using HRSystem.API.Models;
 using HRSystem.API.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace HRSystem.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Policy = "Files.View")]
     public class EmployeeDocumentsController : ControllerBase
     {
         private readonly IEmployeeDocumentsService _service;
 
-        private readonly CloudinaryService _cloudinaryService;
-         
-
-        private readonly AppDbContext _context;
-        //private readonly CloudinaryUploadResult uploadResult;
-
-        public EmployeeDocumentsController(IEmployeeDocumentsService service, CloudinaryService cloudinaryService,
-            AppDbContext dbContext)
+        public EmployeeDocumentsController(IEmployeeDocumentsService service)
         {
             _service = service;
-            _cloudinaryService = cloudinaryService;
-            _context = dbContext;
         }
 
         //[HttpPost("upload")]
@@ -35,6 +24,7 @@ namespace HRSystem.API.Controllers
         //    return Ok(new { Message = "Uploaded successfully", FilePath = filePath });
         //}
         [HttpPost("upload")]
+        [Authorize(Policy = "Files.Upload")]
         public async Task<IActionResult> UploadEmployeePhoto([FromForm] EmployeeDocumentUploadDto dto)
         {
             if (dto == null)
@@ -46,22 +36,8 @@ namespace HRSystem.API.Controllers
             if (dto.File.Length == 0)
                 return BadRequest("File is empty");
 
-            var uploadResult = await _cloudinaryService.UploadImageAsync(dto.File);
-            //var (imageUrl, publicId) = await _cloudinaryService.UploadImageAsync(dto.File);
-            var document = new EmployeeDocument
-            {
-                EmployeeId = dto.EmployeeId,
-                FileName = dto.File.FileName,  // likely line 48
-                UploadedAt = DateTime.UtcNow,
-                FileType = dto.FileType,
-                FilePath = uploadResult.Url.ToString(),
-                CloudinaryPublicId = uploadResult.PublicId,
-            };
-
-            _context.EmployeeDocuments.Add(document);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { document });
+            var path = await _service.UploadAsync(dto);
+            return Ok(new { FilePath = path });
         }
 
         [HttpGet("{employeeId}")]
@@ -89,17 +65,10 @@ namespace HRSystem.API.Controllers
         //}
 
         [HttpDelete("{id}")]
+        [Authorize(Policy = "Files.Upload")]
         public async Task<IActionResult> Delete(int id)
         {
-            var document = await _context.EmployeeDocuments.FindAsync(id);
-            if (document == null) return NotFound();
-
-            var deletedFromCloud = await _cloudinaryService.DeleteImageAsync(document.CloudinaryPublicId);
-
-            _context.EmployeeDocuments.Remove(document);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Deleted from DB and Cloudinary", deletedFromCloud });
+            return await _service.DeleteAsync(id) ? Ok(new { message = "Deleted successfully" }) : NotFound();
         }
 
     }

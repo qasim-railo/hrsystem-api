@@ -8,36 +8,29 @@ namespace HRSystem.API.Services
     public class EmployeeDocumentsService : IEmployeeDocumentsService
     {
         private readonly AppDbContext _context;
-        private readonly IWebHostEnvironment _env;
+        private readonly IFileService _fileService;
 
-        public EmployeeDocumentsService(AppDbContext context, IWebHostEnvironment env)
+        public EmployeeDocumentsService(AppDbContext context, IFileService fileService)
         {
             _context = context;
-            _env = env;
+            _fileService = fileService;
         }
 
         public async Task<string> UploadAsync(EmployeeDocumentUploadDto dto)
         {
-            if (string.IsNullOrEmpty(_env.WebRootPath))
+            var file = await _fileService.UploadAsync(new FileUploadDto
             {
-                throw new InvalidOperationException("WebRootPath is not set. Ensure wwwroot folder exists and environment is configured correctly.");
-            }
-            var uploadFolder = Path.Combine(_env.WebRootPath, "Uploads", "Employees", dto.EmployeeId.ToString());
-            Directory.CreateDirectory(uploadFolder);
-
-            var uniqueFileName = Guid.NewGuid() + Path.GetExtension(dto.File.FileName);
-            var fullPath = Path.Combine(uploadFolder, uniqueFileName);
-
-            using (var stream = new FileStream(fullPath, FileMode.Create))
-            {
-                await dto.File.CopyToAsync(stream);
-            }
+                EntityType = "Employee",
+                EntityId = dto.EmployeeId.ToString(),
+                DocumentType = dto.FileType ?? "Employee document",
+                File = dto.File
+            }, "employee-upload");
 
             var document = new EmployeeDocument
             {
                 EmployeeId = dto.EmployeeId,
                 FileName = dto.File.FileName,
-                FilePath = Path.Combine("Uploads", "Employees", dto.EmployeeId.ToString(), uniqueFileName).Replace("\\", "/"),
+                FilePath = $"api/files/{file.FileId}/download",
                 UploadedAt = DateTime.UtcNow,
                 FileType = dto.FileType
             };
@@ -67,12 +60,16 @@ namespace HRSystem.API.Services
         {
             var doc = await _context.EmployeeDocuments.FindAsync(id);
             if (doc == null) return (null, null);
-
-            var fullPath = Path.Combine(_env.WebRootPath, doc.FilePath);
-            if (!File.Exists(fullPath)) return (null, null);
-
-            var bytes = await File.ReadAllBytesAsync(fullPath);
-            return (bytes, doc.FileName);
+            var marker = "api/files/";
+            var start = doc.FilePath.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+            if (start < 0 || !int.TryParse(doc.FilePath[(start + marker.Length)..].Split('/')[0], out var fileId))
+                return (null, null);
+            var result = await _fileService.OpenReadAsync(fileId);
+            if (result is null) return (null, null);
+            await using var stream = result.Value.Content;
+            using var memory = new MemoryStream();
+            await stream.CopyToAsync(memory);
+            return (memory.ToArray(), result.Value.Record.OriginalFileName);
         }
 
         public async Task<bool> DeleteAsync(int id)
@@ -80,11 +77,10 @@ namespace HRSystem.API.Services
             var doc = await _context.EmployeeDocuments.FindAsync(id);
             if (doc == null) return false;
 
-            var fullPath = Path.Combine(_env.WebRootPath, doc.FilePath);
-            if (File.Exists(fullPath))
-            {
-                File.Delete(fullPath);
-            }
+            var marker = "api/files/";
+            var start = doc.FilePath.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+            if (start >= 0 && int.TryParse(doc.FilePath[(start + marker.Length)..].Split('/')[0], out var fileId))
+                await _fileService.DeleteAsync(fileId);
 
             _context.EmployeeDocuments.Remove(doc);
             await _context.SaveChangesAsync();

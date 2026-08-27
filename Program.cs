@@ -48,7 +48,7 @@ builder.Services.AddAuthentication("Bearer")
 
 builder.Services.AddAuthorization(options =>
 {
-    foreach (var permission in new[] { "Employees.View", "Employees.Create", "Employees.Edit", "Employees.ChangeStatus", "Employees.OverrideDuplicate", "Employees.Export", "Employees.ViewSensitiveData" })
+    foreach (var permission in new[] { "Employees.View", "Employees.Create", "Employees.Edit", "Employees.ChangeStatus", "Employees.OverrideDuplicate", "Employees.Export", "Employees.ViewSensitiveData", "Files.View", "Files.Upload" })
         options.AddPolicy(permission, policy => policy.RequireClaim("permission", permission));
     options.AddPolicy("Users.Manage", policy => policy.RequireClaim("permission", "Users.Manage"));
     options.AddPolicy("Platform.Tenants", policy => policy.RequireClaim("permission", "Platform.Tenants"));
@@ -89,6 +89,7 @@ builder.Services.AddScoped<IGratuityReportService, GratuityReportService>();
 builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<IIncrementHistoryService, IncrementHistoryService>();
 builder.Services.AddScoped<CloudinaryService>();
+builder.Services.AddScoped<IFileService, FileService>();
 
 
 
@@ -138,7 +139,7 @@ using (var scope = app.Services.CreateScope())
         }
     }
     db.SaveChanges();
-    var permissionNames = new[] { "Employees.View", "Employees.Create", "Employees.Edit", "Employees.ChangeStatus", "Employees.OverrideDuplicate", "Employees.Export", "Employees.ViewSensitiveData", "Users.Manage" };
+    var permissionNames = new[] { "Employees.View", "Employees.Create", "Employees.Edit", "Employees.ChangeStatus", "Employees.OverrideDuplicate", "Employees.Export", "Employees.ViewSensitiveData", "Files.View", "Files.Upload", "Users.Manage" };
     permissionNames = permissionNames.Append("Platform.Tenants").ToArray();
     foreach (var name in permissionNames)
         if (!db.Permissions.Any(p => p.Name == name)) db.Permissions.Add(new Permission { Name = name });

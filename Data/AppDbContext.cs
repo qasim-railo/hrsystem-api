@@ -51,6 +51,7 @@ namespace HRSystem.API.Data
                         public DbSet<OnboardingProgress> OnboardingProgress { get; set; }
                         public DbSet<CustomFieldDefinition> CustomFieldDefinitions { get; set; }
                         public DbSet<CustomFieldValue> CustomFieldValues { get; set; }
+                        public DbSet<FileRecord> FileRecords { get; set; }
                         public DbSet<AppUser> Users { get; set; }
                         public DbSet<Role> Roles { get; set; }
                         public DbSet<Permission> Permissions { get; set; }
@@ -113,7 +114,7 @@ namespace HRSystem.API.Data
                         typeof(FinalSettlement), typeof(GratuityReport), typeof(IncrementHistory),
                         typeof(EmployeeStatusHistory), typeof(AuditLog), typeof(Branch), typeof(Section), typeof(Team), typeof(Position)
                         , typeof(EmployeeEmploymentHistory), typeof(TenantSetting), typeof(TenantLeaveType), typeof(OnboardingProgress),
-                        typeof(CustomFieldDefinition), typeof(CustomFieldValue)
+                        typeof(CustomFieldDefinition), typeof(CustomFieldValue), typeof(FileRecord)
                     })
                     {
                         modelBuilder.Entity(entityType).Property<int>(nameof(ITenantOwned.TenantId));
@@ -147,6 +148,8 @@ namespace HRSystem.API.Data
                     modelBuilder.Entity<CustomFieldValue>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
                     modelBuilder.Entity<CustomFieldDefinition>().HasIndex(x => new { x.TenantId, x.Key }).IsUnique();
                     modelBuilder.Entity<CustomFieldValue>().HasIndex(x => new { x.TenantId, x.EmployeeId, x.CustomFieldDefinitionId }).IsUnique();
+                    modelBuilder.Entity<FileRecord>().HasKey(x => x.FileId);
+                    modelBuilder.Entity<FileRecord>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
                     modelBuilder.Entity<CustomFieldDefinition>().Property(x => x.FieldType).HasConversion<string>().HasMaxLength(32);
                     modelBuilder.Entity<CustomFieldValue>().HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Cascade);
                     modelBuilder.Entity<CustomFieldValue>().HasOne(x => x.Definition).WithMany(x => x.Values).HasForeignKey(x => x.CustomFieldDefinitionId).OnDelete(DeleteBehavior.Cascade);
