@@ -4,6 +4,7 @@ namespace HRSystem.API.DTOs
 {
     public class IncrementHistoryDto
     {
+        public int TenantId { get; set; }
         public int EmployeeId { get; set; }
         public DateTime IncrementDate { get; set; }
         public decimal OldSalary { get; set; }

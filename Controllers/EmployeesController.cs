@@ -67,6 +67,46 @@ namespace HRSystem.API.Controllers
             return Ok(result);
         }
 
+        [HttpGet("{id}/profile")]
+        [Authorize(Policy = "Employees.View")]
+        public async Task<IActionResult> GetProfile(int id)
+        {
+            var result = await _service.GetProfileAsync(id);
+            if (result == null) return NotFound();
+
+            if (!User.IsInRole("Admin"))
+            {
+                var allowed = GetAllowedCompanyIdsFromClaims();
+                if (allowed != null && allowed.Any() && !allowed.Contains(result.Employee.CompanyId))
+                    return Forbid();
+            }
+
+            return Ok(result);
+        }
+
+        [HttpGet("{id}/history")]
+        [Authorize(Policy = "Employees.View")]
+        public async Task<IActionResult> GetHistory(int id)
+        {
+            var profile = await _service.GetProfileAsync(id);
+            if (profile == null) return NotFound();
+            if (!User.IsInRole("Admin"))
+            {
+                var allowed = GetAllowedCompanyIdsFromClaims();
+                if (allowed != null && allowed.Any() && !allowed.Contains(profile.Employee.CompanyId))
+                    return Forbid();
+            }
+
+            return Ok(new
+            {
+                profile.Employee.EmployeeId,
+                profile.Employee.TenantId,
+                profile.StatusHistory,
+                profile.EmploymentHistory,
+                profile.SalaryHistory
+            });
+        }
+
         [HttpPost]
         [Authorize(Policy = "Employees.Create")]
         public async Task<IActionResult> Create(EmployeeDto dto)

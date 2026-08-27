@@ -43,6 +43,7 @@ namespace HRSystem.API.Data
         public DbSet<IncrementHistory> IncrementHistories { get; set; }
 
                 public DbSet<EmployeeStatusHistory> EmployeeStatusHistories { get; set; }
+                public DbSet<EmployeeEmploymentHistory> EmployeeEmploymentHistories { get; set; }
                         public DbSet<AuditLog> AuditLogs { get; set; }
                         public DbSet<PlatformAuditLog> PlatformAuditLogs { get; set; }
                         public DbSet<TenantSetting> TenantSettings { get; set; }
@@ -109,7 +110,7 @@ namespace HRSystem.API.Data
                         typeof(EmployeeShift), typeof(Attendance), typeof(Payroll), typeof(LeaveRequest),
                         typeof(FinalSettlement), typeof(GratuityReport), typeof(IncrementHistory),
                         typeof(EmployeeStatusHistory), typeof(AuditLog), typeof(Branch), typeof(Section), typeof(Team), typeof(Position)
-                        , typeof(TenantSetting), typeof(TenantLeaveType), typeof(OnboardingProgress)
+                        , typeof(EmployeeEmploymentHistory), typeof(TenantSetting), typeof(TenantLeaveType), typeof(OnboardingProgress)
                     })
                     {
                         modelBuilder.Entity(entityType).Property<int>(nameof(ITenantOwned.TenantId));
@@ -134,6 +135,7 @@ namespace HRSystem.API.Data
                     modelBuilder.Entity<GratuityReport>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
                     modelBuilder.Entity<IncrementHistory>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
                     modelBuilder.Entity<EmployeeStatusHistory>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<EmployeeEmploymentHistory>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
                     modelBuilder.Entity<AuditLog>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
                     modelBuilder.Entity<TenantSetting>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
                     modelBuilder.Entity<TenantLeaveType>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
@@ -157,6 +159,13 @@ namespace HRSystem.API.Data
                         .WithMany(e => e.StatusHistories)
                         .HasForeignKey(h => h.EmployeeId)
                         .OnDelete(DeleteBehavior.Cascade);
+                     modelBuilder.Entity<EmployeeEmploymentHistory>()
+                        .HasOne(h => h.Employee)
+                        .WithMany()
+                        .HasForeignKey(h => h.EmployeeId)
+                        .OnDelete(DeleteBehavior.Cascade);
+                     modelBuilder.Entity<EmployeeEmploymentHistory>()
+                        .HasIndex(h => new { h.TenantId, h.EmployeeId, h.EffectiveFrom });
 
             modelBuilder.Entity<EmployeeShift>()
        .HasOne(es => es.Employee)

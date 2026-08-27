@@ -130,6 +130,59 @@ namespace HRSystem.API.Services
             return _mapper.Map<EmployeeDto>(e);
         }
 
+        public async Task<EmployeeProfileDto?> GetProfileAsync(int id)
+        {
+            var employee = await _context.Employees
+                .Include(e => e.Company)
+                .Include(e => e.Department)
+                .Include(e => e.EmploymentDetail)
+                .FirstOrDefaultAsync(e => e.EmployeeId == id);
+            if (employee == null) return null;
+
+            var documents = await _context.EmployeeDocuments
+                .Where(x => x.EmployeeId == id).OrderByDescending(x => x.UploadedAt).ToListAsync();
+            var attendance = await _context.Attendance
+                .Where(x => x.EmployeeId == id).OrderByDescending(x => x.Date).ToListAsync();
+            var leave = await _context.LeaveRequests
+                .Include(x => x.Employee)
+                .Where(x => x.EmployeeId == id).OrderByDescending(x => x.StartDate).ToListAsync();
+            var payroll = await _context.Payrolls
+                .Where(x => x.EmployeeId == id).OrderByDescending(x => x.Month).ToListAsync();
+            var assets = await _context.EmployeeAssets
+                .Where(x => x.EmployeeId == id).OrderByDescending(x => x.AssignedDate).ToListAsync();
+            var statusHistory = await _context.EmployeeStatusHistories
+                .Where(x => x.EmployeeId == id).OrderByDescending(x => x.EffectiveDate).ToListAsync();
+            var employmentHistory = await _context.EmployeeEmploymentHistories
+                .Where(x => x.EmployeeId == id).OrderByDescending(x => x.EffectiveFrom).ToListAsync();
+            var salaryHistory = await _context.IncrementHistories
+                .Include(x => x.Employee).Where(x => x.EmployeeId == id)
+                .OrderByDescending(x => x.IncrementDate).ToListAsync();
+            var settlements = await _context.FinalSettlements
+                .Where(x => x.EmployeeId == id).OrderByDescending(x => x.SettlementDate).ToListAsync();
+
+            return new EmployeeProfileDto
+            {
+                Employee = _mapper.Map<EmployeeDto>(employee),
+                Employment = employee.EmploymentDetail == null ? null : _mapper.Map<EmploymentDetailDto>(employee.EmploymentDetail),
+                Documents = _mapper.Map<List<EmployeeDocumentDto>>(documents),
+                Attendance = _mapper.Map<List<AttendanceDto>>(attendance),
+                Leave = _mapper.Map<List<LeaveRequestResponseDto>>(leave),
+                Payroll = _mapper.Map<List<PayrollDto>>(payroll),
+                Assets = _mapper.Map<List<EmployeeAssetDto>>(assets),
+                StatusHistory = _mapper.Map<List<EmployeeStatusHistoryDto>>(statusHistory),
+                EmploymentHistory = _mapper.Map<List<EmployeeEmploymentHistoryDto>>(employmentHistory),
+                SalaryHistory = _mapper.Map<List<IncrementHistoryDto>>(salaryHistory),
+                FinalSettlements = _mapper.Map<List<FinalSettlementDto>>(settlements),
+                Counts = new EmployeeProfileCountsDto
+                {
+                    Documents = documents.Count, Attendance = attendance.Count, Leave = leave.Count,
+                    Payroll = payroll.Count, Assets = assets.Count, StatusHistory = statusHistory.Count,
+                    EmploymentHistory = employmentHistory.Count, SalaryHistory = salaryHistory.Count,
+                    FinalSettlements = settlements.Count
+                }
+            };
+        }
+
         public async Task<EmployeeDto> CreateAsync(EmployeeDto dto)
         {
             var department = await _context.Department

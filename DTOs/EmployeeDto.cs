@@ -8,6 +8,7 @@ namespace HRSystem.API.DTOs
     {
         public int CompanyId { get; set; }
         public int EmployeeId { get; set; }
+        public int TenantId { get; set; }
         [Required(ErrorMessage = "DepartmentId is required")]
         public int DepartmentId { get; set; }
         public string EmployeeCode { get; set; } = string.Empty;

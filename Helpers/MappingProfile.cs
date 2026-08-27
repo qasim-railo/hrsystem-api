@@ -40,8 +40,12 @@ namespace HRSystem.API.Helpers
 
             CreateMap<IncrementHistory, IncrementHistoryDto>()
     .ForMember(dest => dest.Employee, opt => opt.MapFrom(src => src.Employee));
+            CreateMap<EmployeeStatusHistory, EmployeeStatusHistoryDto>();
+            CreateMap<EmployeeEmploymentHistory, EmployeeEmploymentHistoryDto>();
 
             CreateMap<Employee, SimpleEmployeeDto>();
+            CreateMap<EmploymentDetail, EmploymentDetailDto>();
+            CreateMap<EmployeeDocument, EmployeeDocumentDto>().ReverseMap();
 
 
 

@@ -11,6 +11,7 @@ namespace HRSystem.API.Services
             Task<(List<EmployeeDto> items, int totalCount)> GetFilteredAsync(EmployeeFilterDto filter);
 
             Task<EmployeeDto> GetByIdAsync(int id);
+            Task<EmployeeProfileDto?> GetProfileAsync(int id);
             Task<EmployeeDto> CreateAsync(EmployeeDto dto);
             Task<EmployeeDto> UpdateAsync(int id, EmployeeDto dto);
             Task<bool> DeleteAsync(int id);

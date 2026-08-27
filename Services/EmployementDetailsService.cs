@@ -114,6 +114,9 @@ namespace HRSystem.API.Services
 
         public async Task<EmploymentDetailDto> CreateAsync(CreateEmploymentDetailDto dto)
         {
+            var employeeExists = await _context.Employees.AnyAsync(e => e.EmployeeId == dto.EmployeeId);
+            if (!employeeExists) throw new InvalidOperationException("Invalid EmployeeId.");
+
             var ed = new EmploymentDetail
             {
                 EmployeeId = dto.EmployeeId,
@@ -152,6 +155,13 @@ namespace HRSystem.API.Services
             _context.EmploymentDetails.Add(ed);
             await _context.SaveChangesAsync();
 
+            var employee = await _context.Employees.FirstOrDefaultAsync(e => e.EmployeeId == ed.EmployeeId);
+            if (employee != null)
+            {
+                _context.EmployeeEmploymentHistories.Add(CreateHistory(employee, ed, ed.JoiningDate, "Initial employment record"));
+                await _context.SaveChangesAsync();
+            }
+
             return MapToDto(ed);
         }
 
@@ -159,11 +169,42 @@ namespace HRSystem.API.Services
         {
             var ed = await _context.EmploymentDetails.FindAsync(id);
             if (ed == null) return null;
+            if (dto.EmployeeId != ed.EmployeeId)
+                throw new InvalidOperationException("Employment details cannot be reassigned to another employee.");
 
+            var employee = await _context.Employees.FirstOrDefaultAsync(e => e.EmployeeId == ed.EmployeeId);
+            if (employee != null)
+            {
+                var history = CreateHistory(employee, ed, ed.JoiningDate, "Employment record superseded");
+                history.EffectiveTo = DateTime.UtcNow;
+                _context.EmployeeEmploymentHistories.Add(history);
+            }
             UpdateModelFromDto(ed, dto);
             await _context.SaveChangesAsync();
 
             return MapToDto(ed);
+        }
+
+        private static EmployeeEmploymentHistory CreateHistory(Employee employee, EmploymentDetail detail, DateTime effectiveFrom, string reason)
+        {
+            return new EmployeeEmploymentHistory
+            {
+                EmployeeId = employee.EmployeeId,
+                CompanyId = employee.CompanyId,
+                DepartmentId = employee.DepartmentId,
+                BranchId = employee.BranchId,
+                SectionId = employee.SectionId,
+                TeamId = employee.TeamId,
+                PositionId = employee.PositionId,
+                EffectiveFrom = effectiveFrom,
+                Category = detail.Category ?? string.Empty,
+                Designation = detail.OfferDesignation ?? string.Empty,
+                ContractType = detail.ContractType ?? string.Empty,
+                BasicSalary = detail.BasicSalary,
+                GrossSalary = detail.CurrentGrossSalary,
+                ChangeReason = reason,
+                RecordedAt = DateTime.UtcNow
+            };
         }
 
         public async Task<bool> DeleteAsync(int id)
