@@ -51,6 +51,7 @@ builder.Services.AddAuthorization(options =>
     foreach (var permission in new[] { "Employees.View", "Employees.Create", "Employees.Edit", "Employees.ChangeStatus", "Employees.OverrideDuplicate", "Employees.Export", "Employees.ViewSensitiveData" })
         options.AddPolicy(permission, policy => policy.RequireClaim("permission", permission));
     options.AddPolicy("Users.Manage", policy => policy.RequireClaim("permission", "Users.Manage"));
+    options.AddPolicy("Platform.Tenants", policy => policy.RequireClaim("permission", "Platform.Tenants"));
 });
 
 // register audit service
@@ -115,13 +116,32 @@ using (var scope = app.Services.CreateScope())
         db.SaveChanges();
     }
     var permissionNames = new[] { "Employees.View", "Employees.Create", "Employees.Edit", "Employees.ChangeStatus", "Employees.OverrideDuplicate", "Employees.Export", "Employees.ViewSensitiveData", "Users.Manage" };
+    permissionNames = permissionNames.Append("Platform.Tenants").ToArray();
     foreach (var name in permissionNames)
         if (!db.Permissions.Any(p => p.Name == name)) db.Permissions.Add(new Permission { Name = name });
+    db.SaveChanges();
+    var platformRole = db.Roles.Include(r => r.RolePermissions).SingleOrDefault(r => r.Name == "PeopleOS Super Admin") ?? new Role { Name = "PeopleOS Super Admin" };
+    if (platformRole.Id == 0) db.Roles.Add(platformRole);
+    db.SaveChanges();
+    var platformPermission = db.Permissions.Single(p => p.Name == "Platform.Tenants");
+    if (!platformRole.RolePermissions.Any(rp => rp.PermissionId == platformPermission.Id))
+        platformRole.RolePermissions.Add(new RolePermission { PermissionId = platformPermission.Id });
+    var superAdmin = db.Users.Include(u => u.UserRoles).SingleOrDefault(u => u.Username == "superadmin");
+    if (superAdmin == null)
+    {
+        superAdmin = new AppUser { Username = "superadmin", PasswordHash = auth.HashPassword("admin"), TenantId = tenant.TenantId };
+        db.Users.Add(superAdmin);
+        db.SaveChanges();
+    }
+    if (!superAdmin.UserRoles.Any(ur => ur.RoleId == platformRole.Id))
+        superAdmin.UserRoles.Add(new UserRole { RoleId = platformRole.Id });
     db.SaveChanges();
     var adminRole = db.Roles.Include(r => r.RolePermissions).SingleOrDefault(r => r.Name == "Admin") ?? new Role { Name = "Admin" };
     if (adminRole.Id == 0) db.Roles.Add(adminRole);
     db.SaveChanges();
-    foreach (var permission in db.Permissions.Where(p => permissionNames.Contains(p.Name)))
+    foreach (var platformAssignment in adminRole.RolePermissions.Where(rp => rp.PermissionId == platformPermission.Id).ToList())
+        db.RolePermissions.Remove(platformAssignment);
+    foreach (var permission in db.Permissions.Where(p => permissionNames.Contains(p.Name) && p.Name != "Platform.Tenants"))
         if (!adminRole.RolePermissions.Any(rp => rp.PermissionId == permission.Id)) adminRole.RolePermissions.Add(new RolePermission { PermissionId = permission.Id });
     var admin = db.Users.Include(u => u.UserRoles).SingleOrDefault(u => u.Username == "admin");
     if (admin == null)

@@ -12,4 +12,9 @@ public class Tenant
     public string TimeZone { get; set; } = "Asia/Qatar";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public string LifecycleStatus { get; set; } = "Active";
+    public DateTime? TrialStartDate { get; set; }
+    public DateTime? TrialEndDate { get; set; }
+    public string PlanName { get; set; } = "Unassigned";
+    public long StorageUsedBytes { get; set; }
+    public string BillingStatus { get; set; } = "Not configured";
 }

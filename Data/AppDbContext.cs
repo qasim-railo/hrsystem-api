@@ -37,6 +37,10 @@ namespace HRSystem.API.Data
 
                 public DbSet<EmployeeStatusHistory> EmployeeStatusHistories { get; set; }
                         public DbSet<AuditLog> AuditLogs { get; set; }
+                        public DbSet<PlatformAuditLog> PlatformAuditLogs { get; set; }
+                        public DbSet<TenantSetting> TenantSettings { get; set; }
+                        public DbSet<TenantLeaveType> TenantLeaveTypes { get; set; }
+                        public DbSet<OnboardingProgress> OnboardingProgress { get; set; }
                         public DbSet<AppUser> Users { get; set; }
                         public DbSet<Role> Roles { get; set; }
                         public DbSet<Permission> Permissions { get; set; }
@@ -81,6 +85,7 @@ namespace HRSystem.API.Data
                         typeof(EmployeeShift), typeof(Attendance), typeof(Payroll), typeof(LeaveRequest),
                         typeof(FinalSettlement), typeof(GratuityReport), typeof(IncrementHistory),
                         typeof(EmployeeStatusHistory), typeof(AuditLog)
+                        , typeof(TenantSetting), typeof(TenantLeaveType), typeof(OnboardingProgress)
                     })
                     {
                         modelBuilder.Entity(entityType).Property<int>(nameof(ITenantOwned.TenantId));
@@ -102,6 +107,11 @@ namespace HRSystem.API.Data
                     modelBuilder.Entity<IncrementHistory>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
                     modelBuilder.Entity<EmployeeStatusHistory>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
                     modelBuilder.Entity<AuditLog>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<TenantSetting>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<TenantLeaveType>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<OnboardingProgress>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<TenantSetting>().HasIndex(x => new { x.TenantId, x.Key }).IsUnique();
+                    modelBuilder.Entity<TenantLeaveType>().HasIndex(x => new { x.TenantId, x.Name }).IsUnique();
                     modelBuilder.Entity<AppUser>().HasIndex(u => u.Username).IsUnique();
                     modelBuilder.Entity<UserRole>().HasKey(x => new { x.UserId, x.RoleId });
                     modelBuilder.Entity<UserRole>().HasOne(x => x.User).WithMany(x => x.UserRoles).HasForeignKey(x => x.UserId);
