@@ -11,5 +11,6 @@ namespace HRSystem.API.Services.Interfaces
         Task<DepartmentDto> CreateAsync(CreateDepartmentDto dto);
         Task<DepartmentDto?> UpdateAsync(int id, UpdateDepartmentDto dto);
         Task<bool> DeleteAsync(int id);
+        Task<bool> CanDeleteAsync(int id);
     }
 }

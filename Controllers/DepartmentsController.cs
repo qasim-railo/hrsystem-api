@@ -54,6 +54,8 @@ namespace HRSystem.API.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
+            if (!await _service.CanDeleteAsync(id))
+                return Conflict("Department is referenced by employees or sections; reassign them before deleting.");
             var success = await _service.DeleteAsync(id);
             return success ? NoContent() : NotFound();
         }

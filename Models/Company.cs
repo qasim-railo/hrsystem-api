@@ -20,9 +20,14 @@ namespace HRSystem.API.Models
         public string? Website { get; set; }
         public string? ContactPerson { get; set; }
         public string? ContactPhone { get; set; }
+        public bool IsActive { get; set; } = true;
+        public DateTime? EffectiveFrom { get; set; }
+        public DateTime? EffectiveTo { get; set; }
+        public DateTime? ArchivedAt { get; set; }
 
         public ICollection<Employee> Employees { get; set; }
         
         public ICollection<Department> Departments { get; set; }
+        public ICollection<Branch> Branches { get; set; }
     }
 }

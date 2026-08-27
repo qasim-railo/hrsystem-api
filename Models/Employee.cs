@@ -9,6 +9,14 @@ namespace HRSystem.API.Models
         public Company Company { get; set; }
         public int DepartmentId { get; set; }
         public Department Department { get; set; }
+        public int? BranchId { get; set; }
+        public Branch? Branch { get; set; }
+        public int? SectionId { get; set; }
+        public Section? Section { get; set; }
+        public int? TeamId { get; set; }
+        public Team? Team { get; set; }
+        public int? PositionId { get; set; }
+        public Position? Position { get; set; }
 
         public string EmployeeCode { get; set; }
         public string FirstName { get; set; }

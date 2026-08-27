@@ -20,6 +20,10 @@ namespace HRSystem.API.Data
         public DbSet<PlanFeature> PlanFeatures { get; set; }
         public DbSet<Subscription> Subscriptions { get; set; }
         public DbSet<Company> Companies { get; set; }
+        public DbSet<Branch> Branches { get; set; }
+        public DbSet<Section> Sections { get; set; }
+        public DbSet<Team> Teams { get; set; }
+        public DbSet<Position> Positions { get; set; }
 
         public DbSet<Department> Department { get; set; }
         public DbSet<Employee> Employees { get; set; }
@@ -104,7 +108,7 @@ namespace HRSystem.API.Data
                         typeof(EmployeeDocument), typeof(Asset), typeof(EmployeeAsset), typeof(Shift),
                         typeof(EmployeeShift), typeof(Attendance), typeof(Payroll), typeof(LeaveRequest),
                         typeof(FinalSettlement), typeof(GratuityReport), typeof(IncrementHistory),
-                        typeof(EmployeeStatusHistory), typeof(AuditLog)
+                        typeof(EmployeeStatusHistory), typeof(AuditLog), typeof(Branch), typeof(Section), typeof(Team), typeof(Position)
                         , typeof(TenantSetting), typeof(TenantLeaveType), typeof(OnboardingProgress)
                     })
                     {
@@ -112,6 +116,10 @@ namespace HRSystem.API.Data
                     }
                     modelBuilder.Entity<Company>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
                     modelBuilder.Entity<Department>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<Branch>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<Section>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<Team>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<Position>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
                     modelBuilder.Entity<Employee>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
                     modelBuilder.Entity<EmploymentDetail>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
                     modelBuilder.Entity<EmployeeDocument>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
@@ -189,7 +197,17 @@ namespace HRSystem.API.Data
                 .HasOne(d => d.Company)
                 .WithMany(c => c.Departments)
                 .HasForeignKey(d => d.CompanyId)
-                .OnDelete(DeleteBehavior.Cascade); // ✅ OK
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Branch>().HasOne(b => b.Company).WithMany(c => c.Branches).HasForeignKey(b => b.CompanyId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Branch>().HasIndex(b => new { b.TenantId, b.CompanyId, b.Name }).IsUnique();
+            modelBuilder.Entity<Section>().HasOne(s => s.Department).WithMany(d => d.Sections).HasForeignKey(s => s.DepartmentId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Team>().HasOne(t => t.Section).WithMany(s => s.Teams).HasForeignKey(t => t.SectionId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Position>().HasOne(p => p.Team).WithMany(t => t.Positions).HasForeignKey(p => p.TeamId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Employee>().HasOne(e => e.Branch).WithMany().HasForeignKey(e => e.BranchId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Employee>().HasOne(e => e.Section).WithMany().HasForeignKey(e => e.SectionId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Employee>().HasOne(e => e.Team).WithMany().HasForeignKey(e => e.TeamId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Employee>().HasOne(e => e.Position).WithMany().HasForeignKey(e => e.PositionId).OnDelete(DeleteBehavior.Restrict);
 
             // Employee → Company (many-to-one)
             modelBuilder.Entity<Employee>()

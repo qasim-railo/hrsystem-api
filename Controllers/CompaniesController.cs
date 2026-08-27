@@ -45,6 +45,8 @@ public class CompaniesController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
+        if (!await _service.CanDeleteAsync(id))
+            return Conflict("Company is referenced by departments or employees; reassign them before deleting.");
         var success = await _service.DeleteAsync(id);
         if (!success) return NotFound();
         return NoContent();

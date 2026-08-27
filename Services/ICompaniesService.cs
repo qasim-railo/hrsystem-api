@@ -9,6 +9,7 @@ namespace HRSystem.API.Services
         Task<CompanyDto> CreateAsync(CompanyDto dto);
         Task<CompanyDto> UpdateAsync(int id, CompanyDto dto);
         Task<bool> DeleteAsync(int id);
+        Task<bool> CanDeleteAsync(int id);
     }
 
 }

@@ -21,6 +21,7 @@ namespace HRSystem.API.Services
                     CompanyId = c.CompanyId,
                     Name = c.Name,
                     Address = c.Address
+                    , IsActive = c.IsActive, EffectiveFrom = c.EffectiveFrom, EffectiveTo = c.EffectiveTo
                 })
                 .ToListAsync();
         }
@@ -35,6 +36,7 @@ namespace HRSystem.API.Services
                 CompanyId = company.CompanyId,
                 Name = company.Name,
                 Address = company.Address
+                , IsActive = company.IsActive, EffectiveFrom = company.EffectiveFrom, EffectiveTo = company.EffectiveTo
             };
         }
 
@@ -44,6 +46,7 @@ namespace HRSystem.API.Services
             {
                 Name = dto.Name,
                 Address = dto.Address
+                , IsActive = dto.IsActive, EffectiveFrom = dto.EffectiveFrom, EffectiveTo = dto.EffectiveTo
             };
             _context.Companies.Add(company);
             await _context.SaveChangesAsync();
@@ -59,6 +62,10 @@ namespace HRSystem.API.Services
 
             company.Name = dto.Name;
             company.Address = dto.Address;
+            company.IsActive = dto.IsActive;
+            company.EffectiveFrom = dto.EffectiveFrom;
+            company.EffectiveTo = dto.EffectiveTo;
+            company.ArchivedAt = dto.IsActive ? null : (company.ArchivedAt ?? DateTime.UtcNow);
             await _context.SaveChangesAsync();
 
             return dto;
@@ -73,5 +80,9 @@ namespace HRSystem.API.Services
             await _context.SaveChangesAsync();
             return true;
         }
+
+        public async Task<bool> CanDeleteAsync(int id) =>
+            !await _context.Department.AnyAsync(d => d.CompanyId == id) &&
+            !await _context.Employees.AnyAsync(e => e.CompanyId == id);
     }
 }

@@ -26,6 +26,7 @@ namespace HRSystem.API.Services
                     Description = d.Description,
                     CompanyId = d.CompanyId,
                     CompanyName = d.Company.Name
+                    , IsActive = d.IsActive, EffectiveFrom = d.EffectiveFrom, EffectiveTo = d.EffectiveTo, ArchivedAt = d.ArchivedAt
                 }).ToListAsync();
         }
 
@@ -41,6 +42,7 @@ namespace HRSystem.API.Services
                 Description = d.Description,
                 CompanyId = d.CompanyId,
                 CompanyName = d.Company.Name
+                , IsActive = d.IsActive, EffectiveFrom = d.EffectiveFrom, EffectiveTo = d.EffectiveTo, ArchivedAt = d.ArchivedAt
             };
         }
 
@@ -54,6 +56,7 @@ namespace HRSystem.API.Services
                 Name = dto.Name,
                 Description = dto.Description,
                 CompanyId = dto.CompanyId
+                , IsActive = dto.IsActive, EffectiveFrom = dto.EffectiveFrom, EffectiveTo = dto.EffectiveTo
             };
             _context.Department.Add(dept);
             await _context.SaveChangesAsync();
@@ -71,6 +74,10 @@ namespace HRSystem.API.Services
             dept.Name = dto.Name;
             dept.Description = dto.Description;
             dept.CompanyId = dto.CompanyId;
+            dept.IsActive = dto.IsActive;
+            dept.EffectiveFrom = dto.EffectiveFrom;
+            dept.EffectiveTo = dto.EffectiveTo;
+            dept.ArchivedAt = dto.IsActive ? null : (dept.ArchivedAt ?? DateTime.UtcNow);
 
             await _context.SaveChangesAsync();
             return await GetByIdAsync(dept.DepartmentId);
@@ -85,6 +92,10 @@ namespace HRSystem.API.Services
             await _context.SaveChangesAsync();
             return true;
         }
+
+        public async Task<bool> CanDeleteAsync(int id) =>
+            !await _context.Employees.AnyAsync(e => e.DepartmentId == id) &&
+            !await _context.Sections.AnyAsync(s => s.DepartmentId == id);
         public async Task<IEnumerable<DepartmentDto>> GetByCompanyAsync(int companyId)
         {
             var departments = await _context.Department
