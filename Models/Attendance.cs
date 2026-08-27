@@ -1,8 +1,9 @@
 ﻿namespace HRSystem.API.Models
 {
-    public class Attendance
+    public class Attendance : ITenantOwned
     {
         public int Id { get; set; }
+        public int TenantId { get; set; }
         public int EmployeeId { get; set; }
         public DateTime Date { get; set; }
         public TimeSpan CheckIn { get; set; }

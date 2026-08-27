@@ -3,9 +3,10 @@ namespace HRSystem.API.Models
 {
     // your class
 
-    public class Company
+    public class Company : ITenantOwned
     {
         public int CompanyId { get; set; }
+        public int TenantId { get; set; }
         public string Name { get; set; }
         public string Address { get; set; }
 

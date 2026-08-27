@@ -3,9 +3,10 @@ using System.ComponentModel.DataAnnotations;
 
 namespace HRSystem.API.Models
 {
-	public class Department
+	public class Department : ITenantOwned
 	{
 		public int DepartmentId { get; set; }
+		public int TenantId { get; set; }
 
 		[Required]
 		public string Name { get; set; }

@@ -1,8 +1,9 @@
 ﻿namespace HRSystem.API.Models
 {
-    public class Payroll
+    public class Payroll : ITenantOwned
     {
         public int Id { get; set; }
+        public int TenantId { get; set; }
         public int EmployeeId { get; set; }
         public DateTime Month { get; set; } // Use first day of month for reference
         public double BasicSalary { get; set; }

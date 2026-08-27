@@ -4,6 +4,7 @@ using HRSystem.API.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HRSystem.API.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260826133230_AddDynamicRbac")]
+    partial class AddDynamicRbac
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -45,9 +48,6 @@ namespace HRSystem.API.Migrations
                     b.Property<DateTime>("PurchaseDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("TenantId")
-                        .HasColumnType("int");
-
                     b.HasKey("Id");
 
                     b.ToTable("Assets");
@@ -77,9 +77,6 @@ namespace HRSystem.API.Migrations
                         .HasColumnType("int");
 
                     b.Property<int>("OT2")
-                        .HasColumnType("int");
-
-                    b.Property<int>("TenantId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
@@ -116,9 +113,6 @@ namespace HRSystem.API.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("TenantId")
-                        .HasColumnType("int");
-
                     b.Property<string>("UserId")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -143,16 +137,11 @@ namespace HRSystem.API.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("TenantId")
-                        .HasColumnType("int");
-
                     b.Property<string>("Username")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("TenantId");
 
                     b.HasIndex("Username")
                         .IsUnique();
@@ -249,9 +238,6 @@ namespace HRSystem.API.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("TenantId")
-                        .HasColumnType("int");
-
                     b.HasKey("CompanyId");
 
                     b.ToTable("Companies");
@@ -274,9 +260,6 @@ namespace HRSystem.API.Migrations
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("TenantId")
-                        .HasColumnType("int");
 
                     b.HasKey("DepartmentId");
 
@@ -364,9 +347,6 @@ namespace HRSystem.API.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("int");
 
-                    b.Property<int>("TenantId")
-                        .HasColumnType("int");
-
                     b.HasKey("EmployeeId");
 
                     b.HasIndex("CompanyId");
@@ -399,9 +379,6 @@ namespace HRSystem.API.Migrations
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("TenantId")
-                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -439,9 +416,6 @@ namespace HRSystem.API.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("TenantId")
-                        .HasColumnType("int");
-
                     b.Property<DateTime>("UploadedAt")
                         .HasColumnType("datetime2");
 
@@ -467,9 +441,6 @@ namespace HRSystem.API.Migrations
                         .HasColumnType("int");
 
                     b.Property<int>("ShiftId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("TenantId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
@@ -512,9 +483,6 @@ namespace HRSystem.API.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int?>("SupportingDocumentId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("TenantId")
                         .HasColumnType("int");
 
                     b.HasKey("EmployeeStatusHistoryId");
@@ -622,9 +590,6 @@ namespace HRSystem.API.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("TenantId")
-                        .HasColumnType("int");
-
                     b.Property<decimal>("TravelAllowance")
                         .HasColumnType("decimal(18,2)");
 
@@ -682,9 +647,6 @@ namespace HRSystem.API.Migrations
                     b.Property<DateTime>("SettlementDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("TenantId")
-                        .HasColumnType("int");
-
                     b.HasKey("Id");
 
                     b.HasIndex("EmployeeId");
@@ -708,9 +670,6 @@ namespace HRSystem.API.Migrations
 
                     b.Property<double>("GratuityAmount")
                         .HasColumnType("float");
-
-                    b.Property<int>("TenantId")
-                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -746,9 +705,6 @@ namespace HRSystem.API.Migrations
                     b.Property<string>("Reason")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("TenantId")
-                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -788,9 +744,6 @@ namespace HRSystem.API.Migrations
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("TenantId")
-                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -834,9 +787,6 @@ namespace HRSystem.API.Migrations
                     b.Property<double>("OTEarnings")
                         .HasColumnType("float");
 
-                    b.Property<int>("TenantId")
-                        .HasColumnType("int");
-
                     b.HasKey("Id");
 
                     b.HasIndex("EmployeeId");
@@ -862,9 +812,6 @@ namespace HRSystem.API.Migrations
                     b.Property<TimeSpan>("StartTime")
                         .HasColumnType("time");
 
-                    b.Property<int>("TenantId")
-                        .HasColumnType("int");
-
                     b.Property<string>("Type")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -872,56 +819,6 @@ namespace HRSystem.API.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Shifts");
-                });
-
-            modelBuilder.Entity("HRSystem.API.Models.Tenant", b =>
-                {
-                    b.Property<int>("TenantId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TenantId"));
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("Country")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Currency")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("LifecycleStatus")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("SubscriptionReference")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("TimeZone")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("TenantId");
-
-                    b.HasIndex("Code")
-                        .IsUnique();
-
-                    b.ToTable("Tenants");
                 });
 
             modelBuilder.Entity("HRSystem.API.Models.Attendance", b =>
@@ -933,15 +830,6 @@ namespace HRSystem.API.Migrations
                         .IsRequired();
 
                     b.Navigation("Employee");
-                });
-
-            modelBuilder.Entity("HRSystem.API.Models.Auth.AppUser", b =>
-                {
-                    b.HasOne("HRSystem.API.Models.Tenant", null)
-                        .WithMany()
-                        .HasForeignKey("TenantId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
                 });
 
             modelBuilder.Entity("HRSystem.API.Models.Auth.RolePermission", b =>

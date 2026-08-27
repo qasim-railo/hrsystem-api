@@ -46,6 +46,9 @@ namespace HRSystem.API.Services
 
         public async Task<DepartmentDto> CreateAsync(CreateDepartmentDto dto)
         {
+            if (!await _context.Companies.AnyAsync(c => c.CompanyId == dto.CompanyId))
+                throw new InvalidOperationException("Invalid CompanyId.");
+
             var dept = new Department
             {
                 Name = dto.Name,
@@ -62,6 +65,8 @@ namespace HRSystem.API.Services
         {
             var dept = await _context.Department.FindAsync(id);
             if (dept == null) return null;
+            if (!await _context.Companies.AnyAsync(c => c.CompanyId == dto.CompanyId))
+                throw new InvalidOperationException("Invalid CompanyId.");
 
             dept.Name = dto.Name;
             dept.Description = dto.Description;

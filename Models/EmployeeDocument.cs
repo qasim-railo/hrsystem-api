@@ -1,8 +1,9 @@
 ﻿namespace HRSystem.API.Models
 {
-    public class EmployeeDocument
+    public class EmployeeDocument : ITenantOwned
     {
         public int Id { get; set; }
+        public int TenantId { get; set; }
         public int EmployeeId { get; set; }
         public string FileName { get; set; }
         public string FilePath { get; set; } // Full URL

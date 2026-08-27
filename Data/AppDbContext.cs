@@ -1,12 +1,21 @@
 ﻿using HRSystem.API.DTOs;
 using HRSystem.API.Models;
+using HRSystem.API.Models.Auth;
 using Microsoft.EntityFrameworkCore;
+using HRSystem.API.Tenancy;
 namespace HRSystem.API.Data
 {
     public class AppDbContext : DbContext
     {
-        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+        private readonly ICurrentTenant? _currentTenant;
 
+        public AppDbContext(DbContextOptions<AppDbContext> options, ICurrentTenant? currentTenant = null)
+            : base(options)
+        {
+            _currentTenant = currentTenant;
+        }
+
+        public DbSet<Tenant> Tenants { get; set; }
         public DbSet<Company> Companies { get; set; }
 
         public DbSet<Department> Department { get; set; }
@@ -28,10 +37,80 @@ namespace HRSystem.API.Data
 
                 public DbSet<EmployeeStatusHistory> EmployeeStatusHistories { get; set; }
                         public DbSet<AuditLog> AuditLogs { get; set; }
+                        public DbSet<AppUser> Users { get; set; }
+                        public DbSet<Role> Roles { get; set; }
+                        public DbSet<Permission> Permissions { get; set; }
+                        public DbSet<UserRole> UserRoles { get; set; }
+                        public DbSet<RolePermission> RolePermissions { get; set; }
 
-                //ON MODEL CREATING
+                        public override int SaveChanges()
+                        {
+                            ApplyTenantBoundary();
+                            return base.SaveChanges();
+                        }
+
+                        public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+                        {
+                            ApplyTenantBoundary();
+                            return base.SaveChangesAsync(cancellationToken);
+                        }
+
+                        private void ApplyTenantBoundary()
+                        {
+                            foreach (var entry in ChangeTracker.Entries<ITenantOwned>())
+                            {
+                                if (_currentTenant?.TenantId is not int tenantId)
+                                    throw new InvalidOperationException("A current tenant is required for tenant-owned data.");
+
+                                if (entry.State == EntityState.Added)
+                                    entry.Entity.TenantId = tenantId;
+                                else if (entry.Entity.TenantId != tenantId)
+                                    throw new InvalidOperationException("Tenant-owned data cannot cross tenant boundaries.");
+                            }
+                        }
+
+                                //ON MODEL CREATING
                 protected override void OnModelCreating(ModelBuilder modelBuilder)
                 {
+                    modelBuilder.Entity<Tenant>().HasIndex(t => t.Code).IsUnique();
+                    modelBuilder.Entity<AppUser>().HasOne<Tenant>().WithMany().HasForeignKey(u => u.TenantId);
+                    foreach (var entityType in new[]
+                    {
+                        typeof(Company), typeof(Department), typeof(Employee), typeof(EmploymentDetail),
+                        typeof(EmployeeDocument), typeof(Asset), typeof(EmployeeAsset), typeof(Shift),
+                        typeof(EmployeeShift), typeof(Attendance), typeof(Payroll), typeof(LeaveRequest),
+                        typeof(FinalSettlement), typeof(GratuityReport), typeof(IncrementHistory),
+                        typeof(EmployeeStatusHistory), typeof(AuditLog)
+                    })
+                    {
+                        modelBuilder.Entity(entityType).Property<int>(nameof(ITenantOwned.TenantId));
+                    }
+                    modelBuilder.Entity<Company>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<Department>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<Employee>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<EmploymentDetail>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<EmployeeDocument>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<Asset>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<EmployeeAsset>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<Shift>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<EmployeeShift>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<Attendance>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<Payroll>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<LeaveRequest>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<FinalSettlement>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<GratuityReport>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<IncrementHistory>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<EmployeeStatusHistory>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<AuditLog>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<AppUser>().HasIndex(u => u.Username).IsUnique();
+                    modelBuilder.Entity<UserRole>().HasKey(x => new { x.UserId, x.RoleId });
+                    modelBuilder.Entity<UserRole>().HasOne(x => x.User).WithMany(x => x.UserRoles).HasForeignKey(x => x.UserId);
+                    modelBuilder.Entity<UserRole>().HasOne(x => x.Role).WithMany(x => x.UserRoles).HasForeignKey(x => x.RoleId);
+                    modelBuilder.Entity<Role>().HasIndex(x => x.Name).IsUnique();
+                    modelBuilder.Entity<Permission>().HasIndex(x => x.Name).IsUnique();
+                    modelBuilder.Entity<RolePermission>().HasKey(x => new { x.RoleId, x.PermissionId });
+                    modelBuilder.Entity<RolePermission>().HasOne(x => x.Role).WithMany(x => x.RolePermissions).HasForeignKey(x => x.RoleId);
+                    modelBuilder.Entity<RolePermission>().HasOne(x => x.Permission).WithMany(x => x.RolePermissions).HasForeignKey(x => x.PermissionId);
                     modelBuilder.Entity<EmployeeStatusHistory>()
                         .HasKey(h => h.EmployeeStatusHistoryId);
 

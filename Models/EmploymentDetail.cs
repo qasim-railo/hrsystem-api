@@ -1,9 +1,10 @@
 using System;
 namespace HRSystem.API.Models
 {
-    public class EmploymentDetail
+    public class EmploymentDetail : ITenantOwned
     {
         public int EmploymentDetailId { get; set; }
+        public int TenantId { get; set; }
 
         public int EmployeeId { get; set; }
         public Employee Employee { get; set; }

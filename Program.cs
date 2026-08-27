@@ -6,10 +6,14 @@ using HRSystem.API.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Security.Claims;
+using HRSystem.API.Tenancy;
 
 
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddScoped<CurrentTenant>();
+builder.Services.AddScoped<ICurrentTenant>(sp => sp.GetRequiredService<CurrentTenant>());
 // Add CORS policy
 builder.Services.AddCors(options =>
 {
@@ -44,17 +48,14 @@ builder.Services.AddAuthentication("Bearer")
 
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("Employees.View", policy => policy.RequireRole("Admin"));
-    options.AddPolicy("Employees.Create", policy => policy.RequireRole("Admin"));
-    options.AddPolicy("Employees.Edit", policy => policy.RequireRole("Admin"));
-    options.AddPolicy("Employees.ChangeStatus", policy => policy.RequireRole("Admin"));
-    options.AddPolicy("Employees.OverrideDuplicate", policy => policy.RequireRole("Admin"));
-    options.AddPolicy("Employees.Export", policy => policy.RequireRole("Admin"));
-    options.AddPolicy("Employees.ViewSensitiveData", policy => policy.RequireRole("Admin"));
+    foreach (var permission in new[] { "Employees.View", "Employees.Create", "Employees.Edit", "Employees.ChangeStatus", "Employees.OverrideDuplicate", "Employees.Export", "Employees.ViewSensitiveData" })
+        options.AddPolicy(permission, policy => policy.RequireClaim("permission", permission));
+    options.AddPolicy("Users.Manage", policy => policy.RequireClaim("permission", "Users.Manage"));
 });
 
 // register audit service
 builder.Services.AddScoped<IAuditService, AuditService>();
+builder.Services.AddScoped<AuthService>();
 
 
 
@@ -95,6 +96,47 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var auth = scope.ServiceProvider.GetRequiredService<AuthService>();
+    var tenant = db.Tenants.SingleOrDefault(t => t.Code == "DEFAULT");
+    if (tenant == null)
+    {
+        tenant = new HRSystem.API.Models.Tenant
+        {
+            Name = "Default Tenant",
+            Code = "DEFAULT",
+            Country = "QA",
+            Currency = "QAR",
+            TimeZone = "Asia/Qatar"
+        };
+        db.Tenants.Add(tenant);
+        db.SaveChanges();
+    }
+    var permissionNames = new[] { "Employees.View", "Employees.Create", "Employees.Edit", "Employees.ChangeStatus", "Employees.OverrideDuplicate", "Employees.Export", "Employees.ViewSensitiveData", "Users.Manage" };
+    foreach (var name in permissionNames)
+        if (!db.Permissions.Any(p => p.Name == name)) db.Permissions.Add(new Permission { Name = name });
+    db.SaveChanges();
+    var adminRole = db.Roles.Include(r => r.RolePermissions).SingleOrDefault(r => r.Name == "Admin") ?? new Role { Name = "Admin" };
+    if (adminRole.Id == 0) db.Roles.Add(adminRole);
+    db.SaveChanges();
+    foreach (var permission in db.Permissions.Where(p => permissionNames.Contains(p.Name)))
+        if (!adminRole.RolePermissions.Any(rp => rp.PermissionId == permission.Id)) adminRole.RolePermissions.Add(new RolePermission { PermissionId = permission.Id });
+    var admin = db.Users.Include(u => u.UserRoles).SingleOrDefault(u => u.Username == "admin");
+    if (admin == null)
+    {
+        admin = new AppUser { Username = "admin", PasswordHash = auth.HashPassword("admin"), TenantId = tenant.TenantId };
+        db.Users.Add(admin);
+        db.SaveChanges();
+    }
+    else if (admin.TenantId == 0)
+    {
+        admin.TenantId = tenant.TenantId;
+    }
+    if (!admin.UserRoles.Any(ur => ur.RoleId == adminRole.Id)) admin.UserRoles.Add(new UserRole { RoleId = adminRole.Id });
+    db.SaveChanges();
+}
 app.UseStaticFiles();
 
 // Configure the HTTP request pipeline.
@@ -112,8 +154,9 @@ if (!app.Environment.IsDevelopment())
 // Enable CORS
 app.UseCors("AllowAngularApp");
 app.UseAuthentication();
+app.UseMiddleware<TenantResolutionMiddleware>();
 app.UseAuthorization();
 
-app.MapControllers();
+app.MapControllers().RequireAuthorization();
 
 app.Run();

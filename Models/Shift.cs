@@ -1,8 +1,9 @@
 ﻿namespace HRSystem.API.Models
 {
-    public class Shift
+    public class Shift : ITenantOwned
     {
         public int Id { get; set; }
+        public int TenantId { get; set; }
         public string Name { get; set; }
         public TimeSpan StartTime { get; set; }
         public TimeSpan EndTime { get; set; }

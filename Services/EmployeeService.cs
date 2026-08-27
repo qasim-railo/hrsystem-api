@@ -132,9 +132,14 @@ namespace HRSystem.API.Services
 
         public async Task<EmployeeDto> CreateAsync(EmployeeDto dto)
         {
-            var departmentExists = await _context.Department.AnyAsync(d => d.DepartmentId == dto.DepartmentId);
-            if (!departmentExists)
-                throw new Exception("Invalid DepartmentId.");
+            var department = await _context.Department
+                .FirstOrDefaultAsync(d => d.DepartmentId == dto.DepartmentId);
+            if (department == null || department.CompanyId != dto.CompanyId)
+                throw new InvalidOperationException("The department does not belong to the selected company.");
+
+            var companyExists = await _context.Companies.AnyAsync(c => c.CompanyId == dto.CompanyId);
+            if (!companyExists)
+                throw new InvalidOperationException("Invalid CompanyId.");
 
             var entity = new Employee
             {

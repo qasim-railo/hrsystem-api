@@ -1,8 +1,9 @@
 ﻿namespace HRSystem.API.Models
 {
-    public class FinalSettlement
+    public class FinalSettlement : ITenantOwned
     {
         public int Id { get; set; }
+        public int TenantId { get; set; }
         public int EmployeeId { get; set; }
         public DateTime SettlementDate { get; set; }
         public double LeaveEncashment { get; set; }

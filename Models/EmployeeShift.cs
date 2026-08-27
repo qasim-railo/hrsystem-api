@@ -1,8 +1,9 @@
 ﻿namespace HRSystem.API.Models
 {
-    public class EmployeeShift
+    public class EmployeeShift : ITenantOwned
     {
         public int Id { get; set; }
+        public int TenantId { get; set; }
         public int EmployeeId { get; set; }
         public Employee Employee { get; set; }
 

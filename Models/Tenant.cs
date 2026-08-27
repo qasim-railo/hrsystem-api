@@ -1,0 +1,15 @@
+namespace HRSystem.API.Models;
+
+public class Tenant
+{
+    public int TenantId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Code { get; set; } = string.Empty;
+    public string Status { get; set; } = "Active";
+    public string? SubscriptionReference { get; set; }
+    public string Country { get; set; } = "QA";
+    public string Currency { get; set; } = "QAR";
+    public string TimeZone { get; set; } = "Asia/Qatar";
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public string LifecycleStatus { get; set; } = "Active";
+}

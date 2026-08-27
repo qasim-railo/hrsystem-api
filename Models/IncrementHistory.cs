@@ -1,8 +1,9 @@
 ﻿namespace HRSystem.API.Models
 {
-    public class IncrementHistory
+    public class IncrementHistory : ITenantOwned
     {
         public int Id { get; set; }
+        public int TenantId { get; set; }
         public int EmployeeId { get; set; }
         public DateTime IncrementDate { get; set; }
         public decimal OldSalary { get; set; }
