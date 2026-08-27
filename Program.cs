@@ -158,13 +158,27 @@ using (var scope = app.Services.CreateScope())
     if (!superAdmin.UserRoles.Any(ur => ur.RoleId == platformRole.Id))
         superAdmin.UserRoles.Add(new UserRole { RoleId = platformRole.Id });
     db.SaveChanges();
-    var adminRole = db.Roles.Include(r => r.RolePermissions).SingleOrDefault(r => r.Name == "Admin") ?? new Role { Name = "Admin" };
+    var adminRole = db.Roles.Include(r => r.RolePermissions)
+        .FirstOrDefault(r => r.Name == "Admin" && r.TenantId == tenant.TenantId) ?? new Role { Name = "Admin" };
+    adminRole.TenantId = tenant.TenantId;
     if (adminRole.Id == 0) db.Roles.Add(adminRole);
     db.SaveChanges();
     foreach (var platformAssignment in adminRole.RolePermissions.Where(rp => rp.PermissionId == platformPermission.Id).ToList())
         db.RolePermissions.Remove(platformAssignment);
     foreach (var permission in db.Permissions.Where(p => permissionNames.Contains(p.Name) && p.Name != "Platform.Tenants"))
         if (!adminRole.RolePermissions.Any(rp => rp.PermissionId == permission.Id)) adminRole.RolePermissions.Add(new RolePermission { PermissionId = permission.Id });
+    var companyAdministratorRole = db.Roles.Include(r => r.RolePermissions)
+        .SingleOrDefault(r => r.Name == "Company Administrator" && r.TenantId == tenant.TenantId);
+    if (companyAdministratorRole == null)
+    {
+        companyAdministratorRole = new Role { Name = "Company Administrator", TenantId = tenant.TenantId };
+        db.Roles.Add(companyAdministratorRole);
+        db.SaveChanges();
+    }
+    foreach (var permission in db.Permissions.Where(p => permissionNames.Contains(p.Name) && p.Name != "Platform.Tenants"))
+        if (!companyAdministratorRole.RolePermissions.Any(rp => rp.PermissionId == permission.Id))
+            companyAdministratorRole.RolePermissions.Add(new RolePermission { PermissionId = permission.Id });
+    db.SaveChanges();
     var admin = db.Users.Include(u => u.UserRoles).SingleOrDefault(u => u.Username == "admin");
     if (admin == null)
     {
@@ -177,6 +191,8 @@ using (var scope = app.Services.CreateScope())
         admin.TenantId = tenant.TenantId;
     }
     if (!admin.UserRoles.Any(ur => ur.RoleId == adminRole.Id)) admin.UserRoles.Add(new UserRole { RoleId = adminRole.Id });
+    if (!admin.UserRoles.Any(ur => ur.RoleId == companyAdministratorRole.Id))
+        admin.UserRoles.Add(new UserRole { RoleId = companyAdministratorRole.Id });
     db.SaveChanges();
 }
 app.UseStaticFiles();

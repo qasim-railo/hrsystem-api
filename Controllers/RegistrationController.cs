@@ -90,7 +90,21 @@ public class RegistrationController : ControllerBase
             ContactPhone = dto.ContactPhone.Trim()
         });
 
-        var adminRole = await _db.Roles.Include(r => r.RolePermissions).SingleAsync(r => r.Name == "Admin");
+        var adminRole = await _db.Roles.Include(r => r.RolePermissions)
+            .SingleOrDefaultAsync(r => r.Name == "Admin" && r.TenantId == tenant.TenantId);
+        if (adminRole == null)
+        {
+            var template = await _db.Roles.AsNoTracking().Include(r => r.RolePermissions)
+                .OrderBy(r => r.Id).FirstAsync(r => r.Name == "Admin");
+            adminRole = new Role
+            {
+                TenantId = tenant.TenantId,
+                Name = "Admin",
+                RolePermissions = template.RolePermissions.Select(x => new RolePermission { PermissionId = x.PermissionId }).ToList()
+            };
+            _db.Roles.Add(adminRole);
+            await _db.SaveChangesAsync();
+        }
         _db.Users.Add(new AppUser
         {
             TenantId = tenant.TenantId,

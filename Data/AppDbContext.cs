@@ -136,7 +136,7 @@ namespace HRSystem.API.Data
                     modelBuilder.Entity<UserRole>().HasKey(x => new { x.UserId, x.RoleId });
                     modelBuilder.Entity<UserRole>().HasOne(x => x.User).WithMany(x => x.UserRoles).HasForeignKey(x => x.UserId);
                     modelBuilder.Entity<UserRole>().HasOne(x => x.Role).WithMany(x => x.UserRoles).HasForeignKey(x => x.RoleId);
-                    modelBuilder.Entity<Role>().HasIndex(x => x.Name).IsUnique();
+                    modelBuilder.Entity<Role>().HasIndex(x => new { x.TenantId, x.Name }).IsUnique();
                     modelBuilder.Entity<Permission>().HasIndex(x => x.Name).IsUnique();
                     modelBuilder.Entity<RolePermission>().HasKey(x => new { x.RoleId, x.PermissionId });
                     modelBuilder.Entity<RolePermission>().HasOne(x => x.Role).WithMany(x => x.RolePermissions).HasForeignKey(x => x.RoleId);

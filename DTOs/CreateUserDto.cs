@@ -7,3 +7,11 @@ public class CreateUserDto
     public List<string> Roles { get; set; } = new();
     public bool IsActive { get; set; } = true;
 }
+
+public class InviteUserDto
+{
+    public string Username { get; set; } = string.Empty;
+    public List<string> Roles { get; set; } = new();
+    public bool IsActive { get; set; } = true;
+    public string? TemporaryPassword { get; set; }
+}

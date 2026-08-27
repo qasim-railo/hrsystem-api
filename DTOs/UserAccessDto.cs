@@ -6,4 +6,5 @@ public class UserAccessDto
     public string Username { get; set; } = string.Empty;
     public List<string> Roles { get; set; } = new();
     public List<string> Permissions { get; set; } = new();
+    public bool IsActive { get; set; }
 }
