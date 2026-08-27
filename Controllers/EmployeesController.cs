@@ -145,7 +145,19 @@ namespace HRSystem.API.Controllers
                 }
             }
 
-            var result = await _service.CreateAsync(dto);
+            EmployeeDto result;
+            try
+            {
+                result = await _service.CreateAsync(dto);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
 
             if (dup.HasPotentialDuplicates && overrideHeader)
             {
@@ -169,7 +181,19 @@ namespace HRSystem.API.Controllers
         [Authorize(Policy = "Employees.Edit")]
         public async Task<IActionResult> Update(int id, EmployeeDto dto)
         {
-            var result = await _service.UpdateAsync(id, dto);
+            EmployeeDto result;
+            try
+            {
+                result = await _service.UpdateAsync(id, dto);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
             if (result == null) return NotFound();
             return Ok(result);
         }

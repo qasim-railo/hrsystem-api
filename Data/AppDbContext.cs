@@ -49,6 +49,8 @@ namespace HRSystem.API.Data
                         public DbSet<TenantSetting> TenantSettings { get; set; }
                         public DbSet<TenantLeaveType> TenantLeaveTypes { get; set; }
                         public DbSet<OnboardingProgress> OnboardingProgress { get; set; }
+                        public DbSet<CustomFieldDefinition> CustomFieldDefinitions { get; set; }
+                        public DbSet<CustomFieldValue> CustomFieldValues { get; set; }
                         public DbSet<AppUser> Users { get; set; }
                         public DbSet<Role> Roles { get; set; }
                         public DbSet<Permission> Permissions { get; set; }
@@ -110,7 +112,8 @@ namespace HRSystem.API.Data
                         typeof(EmployeeShift), typeof(Attendance), typeof(Payroll), typeof(LeaveRequest),
                         typeof(FinalSettlement), typeof(GratuityReport), typeof(IncrementHistory),
                         typeof(EmployeeStatusHistory), typeof(AuditLog), typeof(Branch), typeof(Section), typeof(Team), typeof(Position)
-                        , typeof(EmployeeEmploymentHistory), typeof(TenantSetting), typeof(TenantLeaveType), typeof(OnboardingProgress)
+                        , typeof(EmployeeEmploymentHistory), typeof(TenantSetting), typeof(TenantLeaveType), typeof(OnboardingProgress),
+                        typeof(CustomFieldDefinition), typeof(CustomFieldValue)
                     })
                     {
                         modelBuilder.Entity(entityType).Property<int>(nameof(ITenantOwned.TenantId));
@@ -140,6 +143,13 @@ namespace HRSystem.API.Data
                     modelBuilder.Entity<TenantSetting>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
                     modelBuilder.Entity<TenantLeaveType>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
                     modelBuilder.Entity<OnboardingProgress>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<CustomFieldDefinition>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<CustomFieldValue>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<CustomFieldDefinition>().HasIndex(x => new { x.TenantId, x.Key }).IsUnique();
+                    modelBuilder.Entity<CustomFieldValue>().HasIndex(x => new { x.TenantId, x.EmployeeId, x.CustomFieldDefinitionId }).IsUnique();
+                    modelBuilder.Entity<CustomFieldDefinition>().Property(x => x.FieldType).HasConversion<string>().HasMaxLength(32);
+                    modelBuilder.Entity<CustomFieldValue>().HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Cascade);
+                    modelBuilder.Entity<CustomFieldValue>().HasOne(x => x.Definition).WithMany(x => x.Values).HasForeignKey(x => x.CustomFieldDefinitionId).OnDelete(DeleteBehavior.Cascade);
                     modelBuilder.Entity<TenantSetting>().HasIndex(x => new { x.TenantId, x.Key }).IsUnique();
                     modelBuilder.Entity<TenantLeaveType>().HasIndex(x => new { x.TenantId, x.Name }).IsUnique();
                     modelBuilder.Entity<AppUser>().HasIndex(u => u.Username).IsUnique();

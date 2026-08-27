@@ -71,6 +71,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 //Custom Services
 builder.Services.AddScoped<IEmployeeService, EmployeeService>();
+builder.Services.AddScoped<CustomFieldService>();
 builder.Services.AddScoped<IEmployeeService, EmployeeService>();
 builder.Services.AddScoped<ICompaniesService, CompaniesService>();
 builder.Services.AddScoped<IDepartmentsService, DepartmentsService>();

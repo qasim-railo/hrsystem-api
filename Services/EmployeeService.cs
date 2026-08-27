@@ -10,10 +10,12 @@ namespace HRSystem.API.Services
     {
         private readonly AppDbContext _context;
         private readonly IMapper _mapper;
-        public EmployeeService(AppDbContext context, IMapper mapper)
+        private readonly CustomFieldService _customFields;
+        public EmployeeService(AppDbContext context, IMapper mapper, CustomFieldService customFields)
         {
             _context = context;
             _mapper = mapper;
+            _customFields = customFields;
         }
 
         public async Task<List<EmployeeDto>> GetAllAsync()
@@ -159,6 +161,8 @@ namespace HRSystem.API.Services
                 .OrderByDescending(x => x.IncrementDate).ToListAsync();
             var settlements = await _context.FinalSettlements
                 .Where(x => x.EmployeeId == id).OrderByDescending(x => x.SettlementDate).ToListAsync();
+            var customValues = await _customFields.GetValuesAsync(id);
+            var customDefinitions = await _customFields.GetDefinitionsAsync();
 
             return new EmployeeProfileDto
             {
@@ -173,6 +177,8 @@ namespace HRSystem.API.Services
                 EmploymentHistory = _mapper.Map<List<EmployeeEmploymentHistoryDto>>(employmentHistory),
                 SalaryHistory = _mapper.Map<List<IncrementHistoryDto>>(salaryHistory),
                 FinalSettlements = _mapper.Map<List<FinalSettlementDto>>(settlements),
+                CustomFields = customValues,
+                CustomFieldDefinitions = customDefinitions,
                 Counts = new EmployeeProfileCountsDto
                 {
                     Documents = documents.Count, Attendance = attendance.Count, Leave = leave.Count,
@@ -219,6 +225,7 @@ namespace HRSystem.API.Services
 
             _context.Employees.Add(entity);
             await _context.SaveChangesAsync();
+            await _customFields.ValidateAndSaveAsync(entity.EmployeeId, dto.CustomFields);
 
             dto.EmployeeId = entity.EmployeeId;
             return dto;
@@ -254,6 +261,8 @@ namespace HRSystem.API.Services
             }
 
             await _context.SaveChangesAsync();
+            if (dto.CustomFields != null)
+                await _customFields.ValidateAndSaveAsync(e.EmployeeId, dto.CustomFields);
             return dto;
         }
 

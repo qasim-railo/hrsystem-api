@@ -14,6 +14,8 @@ namespace HRSystem.API.DTOs
         public List<PayrollDto> Payroll { get; set; } = new();
         public List<EmployeeAssetDto> Assets { get; set; } = new();
         public List<FinalSettlementDto> FinalSettlements { get; set; } = new();
+        public List<CustomFieldDefinitionDto> CustomFieldDefinitions { get; set; } = new();
+        public List<CustomFieldValueDto> CustomFields { get; set; } = new();
     }
 
     public class EmployeeProfileCountsDto
