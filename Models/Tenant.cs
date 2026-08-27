@@ -14,7 +14,9 @@ public class Tenant
     public string LifecycleStatus { get; set; } = "Active";
     public DateTime? TrialStartDate { get; set; }
     public DateTime? TrialEndDate { get; set; }
-    public string PlanName { get; set; } = "Unassigned";
+    public string PlanName { get; set; } = "PeopleOS Essential";
+    public int PlanId { get; set; } = 1;
+    public Plan Plan { get; set; } = null!;
     public long StorageUsedBytes { get; set; }
     public string BillingStatus { get; set; } = "Not configured";
 }

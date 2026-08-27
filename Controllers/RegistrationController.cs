@@ -51,7 +51,9 @@ public class RegistrationController : ControllerBase
             Currency = dto.Country.Equals("QA", StringComparison.OrdinalIgnoreCase) ? "QAR" : "USD",
             TimeZone = dto.Country.Equals("QA", StringComparison.OrdinalIgnoreCase) ? "Asia/Qatar" : "UTC",
             TrialStartDate = DateTime.UtcNow,
-            TrialEndDate = DateTime.UtcNow.AddDays(14)
+            TrialEndDate = DateTime.UtcNow.AddDays(14),
+            PlanId = 1,
+            PlanName = "PeopleOS Essential"
         };
         _db.Tenants.Add(tenant);
         await _db.SaveChangesAsync();

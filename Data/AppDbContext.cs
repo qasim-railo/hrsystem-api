@@ -16,6 +16,8 @@ namespace HRSystem.API.Data
         }
 
         public DbSet<Tenant> Tenants { get; set; }
+        public DbSet<Plan> Plans { get; set; }
+        public DbSet<PlanFeature> PlanFeatures { get; set; }
         public DbSet<Company> Companies { get; set; }
 
         public DbSet<Department> Department { get; set; }
@@ -77,6 +79,19 @@ namespace HRSystem.API.Data
                 protected override void OnModelCreating(ModelBuilder modelBuilder)
                 {
                     modelBuilder.Entity<Tenant>().HasIndex(t => t.Code).IsUnique();
+                    modelBuilder.Entity<Plan>().HasIndex(p => p.Code).IsUnique();
+                    modelBuilder.Entity<PlanFeature>().HasIndex(f => new { f.PlanId, f.FeatureCode }).IsUnique();
+                    modelBuilder.Entity<Plan>().HasMany(p => p.Features).WithOne(f => f.Plan).HasForeignKey(f => f.PlanId);
+                    modelBuilder.Entity<Tenant>().HasOne(t => t.Plan).WithMany(p => p.Tenants).HasForeignKey(t => t.PlanId).OnDelete(DeleteBehavior.Restrict);
+                    modelBuilder.Entity<Plan>().HasData(
+                        new Plan { PlanId = 1, Code = "ESSENTIAL", Name = "PeopleOS Essential", MaxEmployees = 50, MaxUsers = 10, MaxBranches = 1, MaxStorageBytes = 5L * 1024 * 1024 * 1024 },
+                        new Plan { PlanId = 2, Code = "PROFESSIONAL", Name = "PeopleOS Professional", MaxEmployees = 250, MaxUsers = 50, MaxBranches = 10, MaxStorageBytes = 25L * 1024 * 1024 * 1024 });
+                    var essentialFeatures = new[] { "EMPLOYEE_MANAGEMENT", "DOCUMENTS", "LEAVE", "ATTENDANCE", "SHIFTS", "BASIC_PAYROLL", "PAYSLIPS", "STANDARD_REPORTS", "EMPLOYEE_SELF_SERVICE" };
+                    var professionalFeatures = new[] { "EMPLOYEE_MANAGEMENT", "DOCUMENTS", "LEAVE", "ATTENDANCE", "SHIFTS", "BASIC_PAYROLL", "PAYSLIPS", "STANDARD_REPORTS", "EMPLOYEE_SELF_SERVICE", "LOANS", "OVERTIME", "ASSETS", "GRATUITY", "FINAL_SETTLEMENT", "ADVANCED_REPORTS", "CUSTOM_ROLES", "WORKFLOWS", "ORGANIZATION_CHART", "EXPIRY_ALERTS", "ADVANCED_AUDIT" };
+                    modelBuilder.Entity<PlanFeature>().HasData(
+                        essentialFeatures.Select((code, index) => new PlanFeature { PlanFeatureId = index + 1, PlanId = 1, FeatureCode = code })
+                            .Concat(professionalFeatures.Select((code, index) => new PlanFeature { PlanFeatureId = index + 100, PlanId = 2, FeatureCode = code }))
+                            .ToArray());
                     modelBuilder.Entity<AppUser>().HasOne<Tenant>().WithMany().HasForeignKey(u => u.TenantId);
                     foreach (var entityType in new[]
                     {
