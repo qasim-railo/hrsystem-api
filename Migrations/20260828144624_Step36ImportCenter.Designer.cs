@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HRSystem.API.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260828143341_Step35ModelSync")]
-    partial class Step35ModelSync
+    [Migration("20260828144624_Step36ImportCenter")]
+    partial class Step36ImportCenter
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -1362,6 +1362,60 @@ namespace HRSystem.API.Migrations
                     b.HasIndex("EmployeeId");
 
                     b.ToTable("GratuityReports");
+                });
+
+            modelBuilder.Entity("HRSystem.API.Models.ImportJob", b =>
+                {
+                    b.Property<int>("ImportJobId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ImportJobId"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("ErrorRows")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ErrorsJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("ImportedRows")
+                        .HasColumnType("int");
+
+                    b.Property<string>("RowsJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TotalRows")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ValidRows")
+                        .HasColumnType("int");
+
+                    b.HasKey("ImportJobId");
+
+                    b.ToTable("ImportJobs");
                 });
 
             modelBuilder.Entity("HRSystem.API.Models.IncrementHistory", b =>
