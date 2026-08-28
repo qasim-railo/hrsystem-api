@@ -156,6 +156,10 @@ namespace HRSystem.API.Data
                     modelBuilder.Entity<FileRecord>().HasIndex(x => x.DocumentType);
                     modelBuilder.Entity<FileRecord>().HasIndex(x => x.UploadedAt);
                     modelBuilder.Entity<FileRecord>().HasIndex(x => x.Status);
+                    modelBuilder.Entity<FileRecord>()
+                        .HasIndex(x => new { x.TenantId, x.EntityType, x.EntityId, x.DocumentType, x.IsCurrent })
+                        .HasFilter("[IsCurrent] = 1")
+                        .IsUnique();
                     modelBuilder.Entity<CustomFieldDefinition>().Property(x => x.FieldType).HasConversion<string>().HasMaxLength(32);
                     modelBuilder.Entity<CustomFieldValue>().HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Cascade);
                     modelBuilder.Entity<CustomFieldValue>().HasOne(x => x.Definition).WithMany(x => x.Values).HasForeignKey(x => x.CustomFieldDefinitionId).OnDelete(DeleteBehavior.Cascade);

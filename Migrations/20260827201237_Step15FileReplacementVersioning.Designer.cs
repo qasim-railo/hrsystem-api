@@ -4,6 +4,7 @@ using HRSystem.API.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HRSystem.API.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260827201237_Step15FileReplacementVersioning")]
+    partial class Step15FileReplacementVersioning
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -951,12 +954,6 @@ namespace HRSystem.API.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("FileId"));
 
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("DeletedBy")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("DocumentType")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
@@ -974,9 +971,6 @@ namespace HRSystem.API.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("IsCurrent")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
                     b.Property<string>("MimeType")
@@ -1030,11 +1024,12 @@ namespace HRSystem.API.Migrations
 
                     b.HasIndex("TenantId");
 
-                    b.HasIndex("UploadedAt");
-
                     b.HasIndex("TenantId", "EntityType", "EntityId", "DocumentType", "IsCurrent")
+                        .HasFilter("[IsCurrent] = 1")
                         .IsUnique()
-                        .HasFilter("[IsCurrent] = 1");
+                        .HasDatabaseName("IX_FileRecords_CurrentVersion");
+
+                    b.HasIndex("UploadedAt");
 
                     b.ToTable("FileRecords");
                 });

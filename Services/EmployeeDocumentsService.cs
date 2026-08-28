@@ -80,7 +80,7 @@ namespace HRSystem.API.Services
             var marker = "api/files/";
             var start = doc.FilePath.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
             if (start >= 0 && int.TryParse(doc.FilePath[(start + marker.Length)..].Split('/')[0], out var fileId))
-                await _fileService.DeleteAsync(fileId);
+                await _fileService.DeleteAsync(fileId, "legacy-employee-documents");
 
             _context.EmployeeDocuments.Remove(doc);
             await _context.SaveChangesAsync();

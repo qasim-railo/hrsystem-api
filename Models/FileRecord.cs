@@ -18,4 +18,8 @@ public class FileRecord : ITenantOwned
     public DateTime UpdatedAt { get; set; }
     public int Version { get; set; } = 1;
     public string Status { get; set; } = "Active";
+    public bool IsCurrent { get; set; } = true;
+    public bool IsDeleted { get; set; }
+    public DateTime? DeletedAt { get; set; }
+    public string? DeletedBy { get; set; }
 }

@@ -8,6 +8,11 @@ public class FileUploadDto
     public IFormFile File { get; set; } = default!;
 }
 
+public class FileReplaceDto
+{
+    public IFormFile File { get; set; } = default!;
+}
+
 public class FileRecordDto
 {
     public int FileId { get; set; }
@@ -24,6 +29,10 @@ public class FileRecordDto
     public DateTime UpdatedAt { get; set; }
     public int Version { get; set; }
     public string Status { get; set; } = string.Empty;
+    public bool IsCurrent { get; set; }
+    public bool IsDeleted { get; set; }
+    public DateTime? DeletedAt { get; set; }
+    public string? DeletedBy { get; set; }
 }
 
 public class FileSearchRequest
