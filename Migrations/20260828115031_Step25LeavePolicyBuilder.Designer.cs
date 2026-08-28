@@ -4,6 +4,7 @@ using HRSystem.API.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HRSystem.API.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260828115031_Step25LeavePolicyBuilder")]
+    partial class Step25LeavePolicyBuilder
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2232,9 +2235,6 @@ namespace HRSystem.API.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("AllowEncashment")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("ApprovalRequired")
                         .HasColumnType("bit");
 
                     b.Property<int>("CarryForwardLimit")

@@ -170,6 +170,8 @@ namespace HRSystem.API.Data
                     modelBuilder.Entity<PayrollComponentSnapshot>().HasOne(x => x.Payroll).WithMany(x => x.ComponentSnapshots).HasForeignKey(x => x.PayrollId).OnDelete(DeleteBehavior.Restrict);
                     modelBuilder.Entity<OvertimePolicy>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
                     modelBuilder.Entity<OvertimePolicy>().HasIndex(x => new { x.TenantId, x.Name, x.EffectiveFrom });
+                    modelBuilder.Entity<TenantLeaveType>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<TenantLeaveType>().HasIndex(x => new { x.TenantId, x.Name, x.EffectiveFrom });
                     modelBuilder.Entity<ApprovalWorkflow>().HasIndex(x => new { x.TenantId, x.Module, x.RequestType, x.Name }).IsUnique();
                     modelBuilder.Entity<ApprovalWorkflow>().HasMany(x => x.Steps).WithOne(x => x.Workflow).HasForeignKey(x => x.ApprovalWorkflowId).OnDelete(DeleteBehavior.Cascade);
                     modelBuilder.Entity<ApprovalRequest>().HasOne(x => x.Workflow).WithMany().HasForeignKey(x => x.ApprovalWorkflowId).OnDelete(DeleteBehavior.Restrict);
