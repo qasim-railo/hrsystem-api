@@ -8,6 +8,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
+using HRSystem.API.Tenancy;
 
 namespace HRSystem.API.Controllers
 {
@@ -18,12 +19,16 @@ namespace HRSystem.API.Controllers
         private readonly IConfiguration _config;
         private readonly AppDbContext _db;
         private readonly AuthService _auth;
+        private readonly IAuditService _audit;
+        private readonly CurrentTenant _tenant;
 
-        public AuthController(IConfiguration config, AppDbContext db, AuthService auth)
+        public AuthController(IConfiguration config, AppDbContext db, AuthService auth, IAuditService audit, CurrentTenant tenant)
         {
             _config = config;
             _db = db;
             _auth = auth;
+            _audit = audit;
+            _tenant = tenant;
         }
 
         [HttpPost("login")]
@@ -34,6 +39,8 @@ namespace HRSystem.API.Controllers
             if (user == null || !_auth.VerifyPassword(login.Password, user.PasswordHash))
                 return Unauthorized("Invalid credentials");
 
+            _tenant.SetTenant(user.TenantId);
+            await _audit.LogAsync("Login", "User", user.Id.ToString(), user.Username, "{\"result\":\"success\"}");
             return Ok(new { token = GenerateToken(user) });
         }
 
