@@ -8,6 +8,7 @@
         public string Category { get; set; }
         public string AssetCode { get; set; }
         public DateTime PurchaseDate { get; set; }
+        public DateTime? ArchivedAt { get; set; }
 
         public ICollection<EmployeeAsset> EmployeeAssets { get; set; }
     }

@@ -104,6 +104,10 @@ namespace HRSystem.API.Data
                     modelBuilder.Entity<PlanFeature>().HasIndex(f => new { f.PlanId, f.FeatureCode }).IsUnique();
                     modelBuilder.Entity<Plan>().HasMany(p => p.Features).WithOne(f => f.Plan).HasForeignKey(f => f.PlanId);
                     modelBuilder.Entity<Tenant>().HasOne(t => t.Plan).WithMany(p => p.Tenants).HasForeignKey(t => t.PlanId).OnDelete(DeleteBehavior.Restrict);
+                    modelBuilder.Entity<Employee>().HasQueryFilter(x => x.ArchivedAt == null);
+                    modelBuilder.Entity<Department>().HasQueryFilter(x => x.ArchivedAt == null);
+                    modelBuilder.Entity<Asset>().HasQueryFilter(x => x.ArchivedAt == null);
+                    modelBuilder.Entity<AppUser>().HasQueryFilter(x => x.ArchivedAt == null);
                     modelBuilder.Entity<Subscription>().Property(s => s.Status).HasConversion<string>().HasMaxLength(32);
                     modelBuilder.Entity<Subscription>().HasOne(s => s.Tenant).WithMany(t => t.Subscriptions).HasForeignKey(s => s.TenantId).OnDelete(DeleteBehavior.Restrict);
                     modelBuilder.Entity<Subscription>().HasOne(s => s.Plan).WithMany(p => p.Subscriptions).HasForeignKey(s => s.PlanId).OnDelete(DeleteBehavior.Restrict);
