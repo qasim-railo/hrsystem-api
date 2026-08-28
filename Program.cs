@@ -4,11 +4,14 @@ using HRSystem.API.Models.Auth;
 using HRSystem.API.Services;
 using HRSystem.API.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using OfficeOpenXml;
+
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Security.Claims;
 using HRSystem.API.Tenancy;
 
+ExcelPackage.License.SetNonCommercialOrganization("PeopleOS Development");
 
 
 var builder = WebApplication.CreateBuilder(args);

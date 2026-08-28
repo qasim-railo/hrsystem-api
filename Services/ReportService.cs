@@ -1,5 +1,6 @@
 ﻿using HRSystem.API.Data;
 using HRSystem.API.DTOs;
+using OfficeOpenXml;
 using Microsoft.EntityFrameworkCore;
 
 namespace HRSystem.API.Services
@@ -11,6 +12,59 @@ namespace HRSystem.API.Services
         public ReportService(AppDbContext context)
         {
             _context = context;
+        }
+
+        public async Task<List<EmployeeReportDto>> GetEmployeeReportAsync(ReportFilterDto filter)
+        {
+            var query = _context.Employees
+                .Include(e => e.Company)
+                .Include(e => e.Department)
+                .Include(e => e.Branch)
+                .Include(e => e.EmploymentDetail)
+                .AsQueryable();
+
+            if (filter.CompanyId.HasValue) query = query.Where(e => e.CompanyId == filter.CompanyId.Value);
+            if (filter.BranchId.HasValue) query = query.Where(e => e.BranchId == filter.BranchId.Value);
+            if (filter.DepartmentId.HasValue) query = query.Where(e => e.DepartmentId == filter.DepartmentId.Value);
+            if (filter.EmployeeId.HasValue) query = query.Where(e => e.EmployeeId == filter.EmployeeId.Value);
+            if (!string.IsNullOrWhiteSpace(filter.Status)) query = query.Where(e => e.Status.ToString() == filter.Status);
+            if (filter.FromDate.HasValue) query = query.Where(e => e.EmploymentDetail != null && e.EmploymentDetail.JoiningDate >= filter.FromDate.Value);
+            if (filter.ToDate.HasValue) query = query.Where(e => e.EmploymentDetail != null && e.EmploymentDetail.JoiningDate <= filter.ToDate.Value);
+
+            return await query.OrderBy(e => e.EmployeeCode).Select(e => new EmployeeReportDto
+            {
+                EmployeeId = e.EmployeeId,
+                EmployeeCode = e.EmployeeCode,
+                EmployeeName = e.FirstName + " " + e.LastName,
+                CompanyName = e.Company.Name,
+                DepartmentName = e.Department.Name,
+                BranchName = e.Branch == null ? string.Empty : e.Branch.Name,
+                Status = e.Status.ToString(),
+                DateOfJoining = e.EmploymentDetail == null ? null : e.EmploymentDetail.JoiningDate
+            }).ToListAsync();
+        }
+
+        public async Task<byte[]> ExportEmployeeReportAsync(ReportFilterDto filter)
+        {
+            var rows = await GetEmployeeReportAsync(filter);
+            using var package = new ExcelPackage();
+            var sheet = package.Workbook.Worksheets.Add("Employees");
+            var headers = new[] { "Employee Code", "Employee", "Company", "Department", "Branch", "Status", "Date of Joining" };
+            for (var i = 0; i < headers.Length; i++) sheet.Cells[1, i + 1].Value = headers[i];
+            for (var row = 0; row < rows.Count; row++)
+            {
+                var item = rows[row];
+                var line = row + 2;
+                sheet.Cells[line, 1].Value = item.EmployeeCode;
+                sheet.Cells[line, 2].Value = item.EmployeeName;
+                sheet.Cells[line, 3].Value = item.CompanyName;
+                sheet.Cells[line, 4].Value = item.DepartmentName;
+                sheet.Cells[line, 5].Value = item.BranchName;
+                sheet.Cells[line, 6].Value = item.Status;
+                sheet.Cells[line, 7].Value = item.DateOfJoining;
+            }
+            sheet.Cells[sheet.Dimension.Address].AutoFitColumns();
+            return package.GetAsByteArray();
         }
 
         public async Task<List<SalaryReportDto>> GetSalaryReportAsync(int? companyId, int? employeeId, int? month)

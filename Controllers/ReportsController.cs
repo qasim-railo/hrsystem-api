@@ -1,10 +1,13 @@
 ﻿using HRSystem.API.Services;
+using HRSystem.API.DTOs;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HRSystem.API.Controllers
 {
     [ApiController]
     [Route("api/reports")]
+    [Authorize]
     public class ReportsController : ControllerBase
     {
         private readonly IReportService _reportService;
@@ -12,6 +15,20 @@ namespace HRSystem.API.Controllers
         public ReportsController(IReportService reportService)
         {
             _reportService = reportService;
+        }
+
+        [HttpGet("employees")]
+        public async Task<IActionResult> EmployeeReport([FromQuery] ReportFilterDto filter)
+            => Ok(await _reportService.GetEmployeeReportAsync(filter));
+
+        [HttpGet("employees/export")]
+        public async Task<IActionResult> ExportEmployeeReport([FromQuery] ReportFilterDto filter)
+        {
+            if (!User.Claims.Any(c => c.Type == "permission" && (c.Value == "Reports.Export" || c.Value == "Users.Manage")))
+                return Forbid();
+            var bytes = await _reportService.ExportEmployeeReportAsync(filter);
+            return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                $"employees-{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
         }
 
         [HttpGet("salary")]
