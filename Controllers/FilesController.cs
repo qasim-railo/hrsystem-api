@@ -27,6 +27,15 @@ public sealed class FilesController : ControllerBase
         catch (UnauthorizedAccessException ex) { return Forbid(ex.Message); }
     }
 
+    [HttpGet("storage-quota")]
+    public async Task<ActionResult<StorageQuotaDto>> StorageQuota(CancellationToken cancellationToken)
+        => Ok(await _files.GetStorageQuotaAsync(cancellationToken));
+
+    [HttpPost("storage-quota/reconcile")]
+    [Authorize(Policy = "Files.Delete")]
+    public async Task<ActionResult<StorageQuotaDto>> ReconcileStorageQuota(CancellationToken cancellationToken)
+        => Ok(await _files.ReconcileStorageUsageAsync(cancellationToken));
+
     [HttpGet("{fileId:int}")]
     public async Task<ActionResult<FileRecordDto>> Get(int fileId, CancellationToken cancellationToken)
         => (await _files.GetAsync(fileId, cancellationToken)) is { } result ? Ok(result) : NotFound();

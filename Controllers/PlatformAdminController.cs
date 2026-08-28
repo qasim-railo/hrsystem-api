@@ -38,7 +38,8 @@ public class PlatformAdminController : ControllerBase
                 TrialStartDate = t.TrialStartDate,
                 TrialEndDate = t.TrialEndDate,
                 BillingStatus = t.BillingStatus,
-                StorageUsedBytes = t.StorageUsedBytes,
+                StorageUsedBytes = _db.FileRecords.Where(f => f.TenantId == t.TenantId && f.IsCurrent && !f.IsDeleted && f.Status == "Active").Sum(f => (long?)f.Size) ?? 0,
+                StorageLimitBytes = t.Plan.MaxStorageBytes,
                 UserCount = _db.Users.Count(u => u.TenantId == t.TenantId),
                 EmployeeCount = _db.Employees.IgnoreQueryFilters().Count(e => e.TenantId == t.TenantId),
                 CompanyCount = _db.Companies.IgnoreQueryFilters().Count(c => c.TenantId == t.TenantId)
@@ -67,7 +68,7 @@ public class PlatformAdminController : ControllerBase
             SuspendedTenants = await _db.Tenants.CountAsync(t => t.Status == "Suspended"),
             TotalUsers = await _db.Users.CountAsync(),
             TotalEmployees = await _db.Employees.IgnoreQueryFilters().CountAsync(),
-            TotalStorageUsedBytes = await _db.Tenants.SumAsync(t => t.StorageUsedBytes)
+            TotalStorageUsedBytes = await _db.FileRecords.Where(f => f.IsCurrent && !f.IsDeleted && f.Status == "Active").SumAsync(f => (long?)f.Size) ?? 0
         });
     }
 
@@ -116,7 +117,8 @@ public class PlatformAdminController : ControllerBase
             TrialStartDate = t.TrialStartDate,
             TrialEndDate = t.TrialEndDate,
             BillingStatus = t.BillingStatus,
-            StorageUsedBytes = t.StorageUsedBytes,
+            StorageUsedBytes = _db.FileRecords.Where(f => f.TenantId == t.TenantId && f.IsCurrent && !f.IsDeleted && f.Status == "Active").Sum(f => (long?)f.Size) ?? 0,
+            StorageLimitBytes = t.Plan.MaxStorageBytes,
             UserCount = _db.Users.Count(u => u.TenantId == t.TenantId),
             EmployeeCount = _db.Employees.IgnoreQueryFilters().Count(e => e.TenantId == t.TenantId),
             CompanyCount = _db.Companies.IgnoreQueryFilters().Count(c => c.TenantId == t.TenantId)

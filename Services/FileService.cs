@@ -28,6 +28,7 @@ public sealed class FileService : IFileService
 
     public async Task<FileRecordDto> UploadAsync(FileUploadDto request, string uploadedBy, CancellationToken cancellationToken = default)
     {
+        await EnsureQuotaAsync(request.File?.Length ?? 0, cancellationToken);
         var stored = await ValidateAndStoreAsync(request.File, request.EntityType, request.EntityId, cancellationToken);
         try
         {
@@ -44,6 +45,7 @@ public sealed class FileService : IFileService
             };
             _db.FileRecords.Add(record);
             await _db.SaveChangesAsync(cancellationToken);
+            await ReconcileStorageUsageAsync(cancellationToken);
             return ToDto(record);
         }
         catch
@@ -58,6 +60,7 @@ public sealed class FileService : IFileService
     {
         var current = await _db.FileRecords.SingleOrDefaultAsync(x => x.FileId == fileId, cancellationToken);
         if (current is null || !current.IsCurrent || current.Status != "Active") return null;
+        await EnsureQuotaAsync((file?.Length ?? 0) - current.Size, cancellationToken);
         var stored = await ValidateAndStoreAsync(file, current.EntityType, current.EntityId, cancellationToken);
         await using var transaction = await _db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, cancellationToken);
         try
@@ -84,6 +87,7 @@ public sealed class FileService : IFileService
             };
             _db.FileRecords.Add(replacement);
             await _db.SaveChangesAsync(cancellationToken);
+            await ReconcileStorageUsageAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             return ToDto(replacement);
         }
@@ -185,6 +189,7 @@ public sealed class FileService : IFileService
             Details = $"Moved {versions.Count} file version(s) to the recycle bin."
         });
         await _db.SaveChangesAsync(cancellationToken);
+        await ReconcileStorageUsageAsync(cancellationToken);
         return true;
     }
 
@@ -216,6 +221,7 @@ public sealed class FileService : IFileService
             Details = $"Restored version {restored.Version}."
         });
         await _db.SaveChangesAsync(cancellationToken);
+        await ReconcileStorageUsageAsync(cancellationToken);
         return ToDto(restored);
     }
 
@@ -239,7 +245,25 @@ public sealed class FileService : IFileService
             Details = $"Permanently purged {versions.Count} file version(s)."
         });
         await _db.SaveChangesAsync(cancellationToken);
+        await ReconcileStorageUsageAsync(cancellationToken);
         return true;
+    }
+
+    public async Task<StorageQuotaDto> GetStorageQuotaAsync(CancellationToken cancellationToken = default)
+    {
+        if (_currentTenant.TenantId is not int tenantId) throw new UnauthorizedAccessException("A tenant context is required.");
+        var tenant = await _db.Tenants.Include(x => x.Plan).SingleAsync(x => x.TenantId == tenantId, cancellationToken);
+        var used = await GetActualUsageAsync(tenantId, cancellationToken);
+        return ToQuota(used, tenant.Plan?.MaxStorageBytes ?? 0);
+    }
+
+    public async Task<StorageQuotaDto> ReconcileStorageUsageAsync(CancellationToken cancellationToken = default)
+    {
+        if (_currentTenant.TenantId is not int tenantId) throw new UnauthorizedAccessException("A tenant context is required.");
+        var tenant = await _db.Tenants.Include(x => x.Plan).SingleAsync(x => x.TenantId == tenantId, cancellationToken);
+        tenant.StorageUsedBytes = await GetActualUsageAsync(tenantId, cancellationToken);
+        await _db.SaveChangesAsync(cancellationToken);
+        return ToQuota(tenant.StorageUsedBytes, tenant.Plan?.MaxStorageBytes ?? 0);
     }
 
     private static FileRecordDto ToDto(FileRecord x) => new()
@@ -249,6 +273,30 @@ public sealed class FileService : IFileService
         Size = x.Size, Extension = x.Extension, UploadedBy = x.UploadedBy, UploadedAt = x.UploadedAt,
         UpdatedAt = x.UpdatedAt, Version = x.Version, Status = x.Status, IsCurrent = x.IsCurrent,
         IsDeleted = x.IsDeleted, DeletedAt = x.DeletedAt, DeletedBy = x.DeletedBy
+    };
+
+    private async Task EnsureQuotaAsync(long incomingBytes, CancellationToken cancellationToken)
+    {
+        if (incomingBytes <= 0) return;
+        if (_currentTenant.TenantId is not int tenantId) throw new UnauthorizedAccessException("A tenant context is required.");
+        var tenant = await _db.Tenants.Include(x => x.Plan).SingleAsync(x => x.TenantId == tenantId, cancellationToken);
+        var used = await GetActualUsageAsync(tenantId, cancellationToken);
+        var limit = tenant.Plan?.MaxStorageBytes ?? 0;
+        if (limit > 0 && used + incomingBytes > limit)
+            throw new InvalidOperationException($"Storage quota exceeded. {limit - used:N0} bytes remain.");
+    }
+
+    private async Task<long> GetActualUsageAsync(int tenantId, CancellationToken cancellationToken)
+        => await _db.FileRecords.AsNoTracking()
+            .Where(x => x.TenantId == tenantId && x.IsCurrent && !x.IsDeleted && x.Status == "Active")
+            .SumAsync(x => (long?)x.Size, cancellationToken) ?? 0L;
+
+    private static StorageQuotaDto ToQuota(long used, long limit) => new()
+    {
+        UsedBytes = used,
+        LimitBytes = limit,
+        RemainingBytes = limit > 0 ? Math.Max(0, limit - used) : long.MaxValue,
+        UsagePercent = limit > 0 ? Math.Round((double)used / limit * 100, 2) : 0
     };
 
     private static System.Linq.Expressions.Expression<Func<FileRecord, FileRecordDto>> ToDtoExpression() => x => new FileRecordDto

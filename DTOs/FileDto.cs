@@ -45,3 +45,11 @@ public class FileSearchRequest
     public DateTime? FromDate { get; set; }
     public DateTime? ToDate { get; set; }
 }
+
+public class StorageQuotaDto
+{
+    public long UsedBytes { get; set; }
+    public long LimitBytes { get; set; }
+    public long RemainingBytes { get; set; }
+    public double UsagePercent { get; set; }
+}

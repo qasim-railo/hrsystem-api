@@ -12,6 +12,7 @@ public class PlatformTenantDto
     public DateTime? TrialEndDate { get; set; }
     public string BillingStatus { get; set; } = string.Empty;
     public long StorageUsedBytes { get; set; }
+    public long StorageLimitBytes { get; set; }
     public int UserCount { get; set; }
     public int EmployeeCount { get; set; }
     public int CompanyCount { get; set; }

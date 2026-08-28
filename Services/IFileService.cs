@@ -13,6 +13,8 @@ public interface IFileService
     Task<IReadOnlyList<FileRecordDto>> GetRecycleBinAsync(CancellationToken cancellationToken = default);
     Task<FileRecordDto?> RestoreAsync(int fileId, string restoredBy, CancellationToken cancellationToken = default);
     Task<bool> PurgeAsync(int fileId, string purgedBy, CancellationToken cancellationToken = default);
+    Task<StorageQuotaDto> GetStorageQuotaAsync(CancellationToken cancellationToken = default);
+    Task<StorageQuotaDto> ReconcileStorageUsageAsync(CancellationToken cancellationToken = default);
     Task<FileRecordDto?> ReplaceAsync(int fileId, IFormFile file, string uploadedBy, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<FileRecordDto>> GetVersionHistoryAsync(int fileId, CancellationToken cancellationToken = default);
 }

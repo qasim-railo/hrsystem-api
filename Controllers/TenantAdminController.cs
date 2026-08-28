@@ -75,8 +75,17 @@ public class TenantAdminController : ControllerBase
             departments = await _db.Department.CountAsync(),
             branches = await _db.Companies.CountAsync(),
             employees = await _db.Employees.CountAsync(),
-            usage = new { tenant.StorageUsedBytes },
+            usage = await BuildStorageUsageAsync(id),
             subscription
         });
+    }
+
+    private async Task<object> BuildStorageUsageAsync(int tenantId)
+    {
+        var tenant = await _db.Tenants.Include(x => x.Plan).AsNoTracking().SingleAsync(x => x.TenantId == tenantId);
+        var used = await _db.FileRecords.Where(x => x.TenantId == tenantId && x.IsCurrent && !x.IsDeleted && x.Status == "Active")
+           .SumAsync(x => (long?)x.Size) ?? 0;
+        return new { storageUsedBytes = used, storageLimitBytes = tenant.Plan.MaxStorageBytes,
+           remainingBytes = Math.Max(0, tenant.Plan.MaxStorageBytes - used) };
     }
 }
