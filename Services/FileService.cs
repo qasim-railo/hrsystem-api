@@ -15,15 +15,18 @@ public sealed class FileService : IFileService
     private readonly ICurrentTenant _currentTenant;
     private readonly FileStorageOptions _options;
     private readonly IMalwareScanner _malwareScanner;
+    private readonly IFileStorageService _storage;
 
     public FileService(AppDbContext db, IWebHostEnvironment environment, ICurrentTenant currentTenant,
-        IOptions<FileStorageOptions>? options = null, IMalwareScanner? malwareScanner = null)
+        IOptions<FileStorageOptions>? options = null, IMalwareScanner? malwareScanner = null,
+        IFileStorageService? storage = null)
     {
         _db = db;
         _environment = environment;
         _currentTenant = currentTenant;
         _options = options?.Value ?? new FileStorageOptions();
         _malwareScanner = malwareScanner ?? new NoOpMalwareScanner();
+        _storage = storage ?? new LocalFileStorageService(environment, Options.Create(_options));
     }
 
     public async Task<FileRecordDto> UploadAsync(FileUploadDto request, string uploadedBy, CancellationToken cancellationToken = default)
@@ -50,7 +53,7 @@ public sealed class FileService : IFileService
         }
         catch
         {
-            try { if (File.Exists(stored.FullPath)) File.Delete(stored.FullPath); }
+            try { await _storage.DeleteAsync(stored.RelativePath, cancellationToken); }
             catch { /* retain the original failure; cleanup can be retried by an operator */ }
             throw;
         }
@@ -93,7 +96,7 @@ public sealed class FileService : IFileService
         }
         catch
         {
-            try { if (File.Exists(stored.FullPath)) File.Delete(stored.FullPath); }
+            try { await _storage.DeleteAsync(stored.RelativePath, cancellationToken); }
             catch { }
             throw;
         }
@@ -118,10 +121,8 @@ public sealed class FileService : IFileService
     {
         var record = await _db.FileRecords.SingleOrDefaultAsync(x => x.FileId == fileId && x.Status == "Active", cancellationToken);
         if (record is null) return null;
-        var root = Path.GetFullPath(Path.Combine(_environment.ContentRootPath, _options.RootPath));
-        var path = Path.GetFullPath(Path.Combine(root, record.StoragePath));
-        if (!path.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) || !File.Exists(path)) return null;
-        return (new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read), record);
+        var stream = await _storage.DownloadAsync(record.StoragePath, cancellationToken);
+        return stream is null ? null : (stream, record);
     }
 
     public async Task<FileRecordDto?> GetAsync(int fileId, CancellationToken cancellationToken = default)
@@ -231,10 +232,10 @@ public sealed class FileService : IFileService
         if (record is null) return false;
         var versions = await _db.FileRecords.Where(x => x.EntityType == record.EntityType &&
             x.EntityId == record.EntityId && x.DocumentType == record.DocumentType).ToListAsync(cancellationToken);
-        var paths = versions.Select(x => GetFullPath(x.StoragePath)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var paths = versions.Select(x => x.StoragePath).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         foreach (var path in paths)
         {
-            if (File.Exists(path) && !TryDeletePhysicalFile(path))
+            if (await _storage.ExistsAsync(path, cancellationToken) && !await _storage.DeleteAsync(path, cancellationToken))
                 throw new IOException($"Unable to permanently delete stored file '{Path.GetFileName(path)}'.");
         }
         _db.FileRecords.RemoveRange(versions);
@@ -308,22 +309,8 @@ public sealed class FileService : IFileService
        IsDeleted = x.IsDeleted, DeletedAt = x.DeletedAt, DeletedBy = x.DeletedBy
     };
 
-    private string GetFullPath(string relativePath)
-    {
-       var root = Path.GetFullPath(Path.Combine(_environment.ContentRootPath, _options.RootPath));
-       var path = Path.GetFullPath(Path.Combine(root, relativePath));
-       if (!path.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
-           throw new InvalidOperationException("Invalid storage path.");
-       return path;
-    }
 
-    private static bool TryDeletePhysicalFile(string path)
-    {
-       try { File.Delete(path); return !File.Exists(path); }
-       catch { return false; }
-    }
-
-    private async Task<(int TenantId, string OriginalName, string Extension, string MimeType, string StoredName, string RelativePath, string FullPath)>
+    private async Task<(int TenantId, string OriginalName, string Extension, string MimeType, string StoredName, string RelativePath)>
         ValidateAndStoreAsync(IFormFile file, string entityTypeInput, string entityIdInput, CancellationToken cancellationToken)
     {
         if (file is null || file.Length == 0) throw new InvalidOperationException("A non-empty file is required.");
@@ -351,26 +338,19 @@ public sealed class FileService : IFileService
             throw new InvalidOperationException("The file MIME type is not allowed for its extension.");
         if (_currentTenant.TenantId is not int tenantId || tenantId <= 0)
             throw new UnauthorizedAccessException("A tenant context is required.");
-        var storedName = $"{Guid.NewGuid():N}{extension}";
-        var relativePath = Path.Combine(tenantId.ToString(), storedName);
-        var root = Path.GetFullPath(Path.Combine(_environment.ContentRootPath, _options.RootPath));
-        var fullPath = Path.GetFullPath(Path.Combine(root, relativePath));
-        if (!fullPath.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("Invalid storage path.");
-        Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
         await using (var scanStream = file.OpenReadStream())
             await _malwareScanner.ScanAsync(scanStream, originalName, cancellationToken);
+        StoredFile storedFile;
         try
         {
-            await using (var output = new FileStream(fullPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
-                await file.CopyToAsync(output, cancellationToken);
+            await using var content = file.OpenReadStream();
+            storedFile = await _storage.UploadAsync(content, tenantId, extension, cancellationToken);
         }
         catch
         {
-            try { if (File.Exists(fullPath)) File.Delete(fullPath); } catch { }
             throw;
         }
-        return (tenantId, originalName, extension, mimeType, storedName, relativePath, fullPath);
+        return (tenantId, originalName, extension, mimeType, storedFile.StoredFileName, storedFile.StoragePath);
     }
 
     private static bool MimeMatchesExtension(string extension, string mimeType) => extension switch
