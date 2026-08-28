@@ -53,6 +53,10 @@ namespace HRSystem.API.Data
                         public DbSet<CustomFieldValue> CustomFieldValues { get; set; }
                         public DbSet<FileRecord> FileRecords { get; set; }
                         public DbSet<NumberingSequence> NumberingSequences { get; set; }
+                        public DbSet<ApprovalWorkflow> ApprovalWorkflows { get; set; }
+                        public DbSet<ApprovalStep> ApprovalSteps { get; set; }
+                        public DbSet<ApprovalRequest> ApprovalRequests { get; set; }
+                        public DbSet<ApprovalAction> ApprovalActions { get; set; }
                         public DbSet<AppUser> Users { get; set; }
                         public DbSet<Role> Roles { get; set; }
                         public DbSet<Permission> Permissions { get; set; }
@@ -116,7 +120,7 @@ namespace HRSystem.API.Data
                         typeof(EmployeeStatusHistory), typeof(AuditLog), typeof(Branch), typeof(Section), typeof(Team), typeof(Position)
                         , typeof(EmployeeEmploymentHistory), typeof(TenantSetting), typeof(TenantLeaveType), typeof(OnboardingProgress),
                         typeof(CustomFieldDefinition), typeof(CustomFieldValue), typeof(FileRecord)
-                        , typeof(NumberingSequence)
+                        , typeof(NumberingSequence), typeof(ApprovalWorkflow), typeof(ApprovalRequest), typeof(ApprovalAction)
                     })
                     {
                         modelBuilder.Entity(entityType).Property<int>(nameof(ITenantOwned.TenantId));
@@ -154,6 +158,13 @@ namespace HRSystem.API.Data
                     modelBuilder.Entity<NumberingSequence>().HasIndex(x => new { x.TenantId, x.SequenceKey, x.Year }).IsUnique();
                     modelBuilder.Entity<FileRecord>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
                     modelBuilder.Entity<NumberingSequence>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<ApprovalWorkflow>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<ApprovalRequest>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<ApprovalAction>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<ApprovalWorkflow>().HasIndex(x => new { x.TenantId, x.Module, x.RequestType, x.Name }).IsUnique();
+                    modelBuilder.Entity<ApprovalWorkflow>().HasMany(x => x.Steps).WithOne(x => x.Workflow).HasForeignKey(x => x.ApprovalWorkflowId).OnDelete(DeleteBehavior.Cascade);
+                    modelBuilder.Entity<ApprovalRequest>().HasOne(x => x.Workflow).WithMany().HasForeignKey(x => x.ApprovalWorkflowId).OnDelete(DeleteBehavior.Restrict);
+                    modelBuilder.Entity<ApprovalAction>().HasOne(x => x.Request).WithMany(x => x.Actions).HasForeignKey(x => x.ApprovalRequestId).OnDelete(DeleteBehavior.Restrict);
                     modelBuilder.Entity<FileRecord>().HasIndex(x => x.TenantId);
                     modelBuilder.Entity<FileRecord>().HasIndex(x => x.EntityType);
                     modelBuilder.Entity<FileRecord>().HasIndex(x => x.EntityId);

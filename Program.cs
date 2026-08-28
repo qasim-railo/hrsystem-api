@@ -51,6 +51,7 @@ builder.Services.AddAuthorization(options =>
     foreach (var permission in new[] { "Employees.View", "Employees.Create", "Employees.Edit", "Employees.ChangeStatus", "Employees.OverrideDuplicate", "Employees.Export", "Employees.ViewSensitiveData", "Files.View", "Files.Upload", "Files.Replace", "Files.Delete", "Files.Restore", "Files.Purge" })
         options.AddPolicy(permission, policy => policy.RequireClaim("permission", permission));
     options.AddPolicy("Users.Manage", policy => policy.RequireClaim("permission", "Users.Manage"));
+    options.AddPolicy("Workflows.Manage", policy => policy.RequireClaim("permission", "Workflows.Manage"));
     options.AddPolicy("Platform.Tenants", policy => policy.RequireClaim("permission", "Platform.Tenants"));
 });
 
@@ -144,7 +145,7 @@ using (var scope = app.Services.CreateScope())
         }
     }
     db.SaveChanges();
-    var permissionNames = new[] { "Employees.View", "Employees.Create", "Employees.Edit", "Employees.ChangeStatus", "Employees.OverrideDuplicate", "Employees.Export", "Employees.ViewSensitiveData", "Files.View", "Files.Upload", "Files.Replace", "Files.Delete", "Files.Restore", "Files.Purge", "Users.Manage" };
+    var permissionNames = new[] { "Employees.View", "Employees.Create", "Employees.Edit", "Employees.ChangeStatus", "Employees.OverrideDuplicate", "Employees.Export", "Employees.ViewSensitiveData", "Files.View", "Files.Upload", "Files.Replace", "Files.Delete", "Files.Restore", "Files.Purge", "Users.Manage", "Workflows.Manage" };
     permissionNames = permissionNames.Append("Platform.Tenants").ToArray();
     foreach (var name in permissionNames)
         if (!db.Permissions.Any(p => p.Name == name)) db.Permissions.Add(new Permission { Name = name });
