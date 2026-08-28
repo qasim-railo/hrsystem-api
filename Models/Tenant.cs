@@ -10,6 +10,7 @@ public class Tenant
     public string Country { get; set; } = "QA";
     public string Currency { get; set; } = "QAR";
     public string TimeZone { get; set; } = "Asia/Qatar";
+    public string DefaultLanguage { get; set; } = "en";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public string LifecycleStatus { get; set; } = "Active";
     public DateTime? TrialStartDate { get; set; }
