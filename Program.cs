@@ -100,6 +100,7 @@ builder.Services.AddScoped<IReferenceNumberService, ReferenceNumberService>();
 builder.Services.AddScoped<OvertimePolicyService>();
 builder.Services.AddSingleton<IMalwareScanner, NoOpMalwareScanner>();
 builder.Services.AddScoped<IFileService, FileService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 
 
 

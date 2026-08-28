@@ -44,6 +44,7 @@ namespace HRSystem.API.Controllers
             {
                 new(ClaimTypes.Name, user.Username),
                 new("tenant_id", user.TenantId.ToString())
+                ,new("user_id", user.Id.ToString())
             };
             claims.AddRange(user.UserRoles.Select(ur => new Claim(ClaimTypes.Role, ur.Role.Name)));
             claims.AddRange(user.UserRoles.SelectMany(ur => ur.Role.RolePermissions)

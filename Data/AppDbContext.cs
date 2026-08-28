@@ -67,6 +67,8 @@ namespace HRSystem.API.Data
                         public DbSet<Permission> Permissions { get; set; }
                         public DbSet<UserRole> UserRoles { get; set; }
                         public DbSet<RolePermission> RolePermissions { get; set; }
+                        public DbSet<NotificationTemplate> NotificationTemplates { get; set; }
+                        public DbSet<Notification> Notifications { get; set; }
 
                         public override int SaveChanges()
                         {
@@ -125,7 +127,7 @@ namespace HRSystem.API.Data
                         typeof(EmployeeStatusHistory), typeof(AuditLog), typeof(Branch), typeof(Section), typeof(Team), typeof(Position)
                         , typeof(EmployeeEmploymentHistory), typeof(TenantSetting), typeof(TenantLeaveType), typeof(OnboardingProgress),
                         typeof(CustomFieldDefinition), typeof(CustomFieldValue), typeof(FileRecord)
-                        , typeof(NumberingSequence), typeof(ApprovalWorkflow), typeof(ApprovalRequest), typeof(ApprovalAction), typeof(PayrollComponent), typeof(PayrollComponentSnapshot), typeof(OvertimePolicy), typeof(AttendanceConfiguration), typeof(AttendanceImportLog)
+                        ,                                                 typeof(NumberingSequence), typeof(ApprovalWorkflow), typeof(ApprovalRequest), typeof(ApprovalAction), typeof(PayrollComponent), typeof(PayrollComponentSnapshot), typeof(OvertimePolicy), typeof(AttendanceConfiguration), typeof(AttendanceImportLog), typeof(NotificationTemplate), typeof(Notification)
                     })
                     {
                         modelBuilder.Entity(entityType).Property<int>(nameof(ITenantOwned.TenantId));
