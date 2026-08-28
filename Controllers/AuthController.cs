@@ -50,6 +50,8 @@ namespace HRSystem.API.Controllers
                 .Select(rp => new Claim("permission", rp.Permission.Name)).DistinctBy(c => c.Value));
             claims.AddRange(user.UserRoles.SelectMany(ur => ur.Role.RolePermissions)
                 .Select(rp => new Claim("permission_scope", $"{rp.Permission.Name}:{rp.DataScope}:{rp.ScopeIdsJson}")));
+            var employeeId = _db.Employees.Where(e => e.Email == user.Username).Select(e => (int?)e.EmployeeId).FirstOrDefault();
+            if (employeeId.HasValue) claims.Add(new Claim("employee_id", employeeId.Value.ToString()));
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Key));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
