@@ -15,5 +15,6 @@
         public bool IsApproved { get; set; }
 
         public Employee Employee { get; set; }
+        public ICollection<PayrollComponentSnapshot> ComponentSnapshots { get; set; } = new List<PayrollComponentSnapshot>();
     }
 }

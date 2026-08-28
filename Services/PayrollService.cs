@@ -24,7 +24,8 @@ namespace HRSystem.API.Services
             var startDate = new DateTime(year, month, 1);
             var endDate = startDate.AddMonths(1).AddDays(-1);
 
-            var employees = await _context.Employees.ToListAsync();
+            var employees = await _context.Employees.Include(x => x.EmploymentDetail).ToListAsync();
+            var components = await EnsureDefaultComponentsAsync();
             var payrolls = new List<Payroll>();
 
             foreach (var emp in employees)
@@ -35,21 +36,52 @@ namespace HRSystem.API.Services
 
                 var ot1 = attendance.Sum(a => a.OT1);
                 var ot2 = attendance.Sum(a => a.OT2);
-                var otEarnings = (ot1 * 20) + (ot2 * 30); // example rates
+                var otEarnings = (ot1 * 20) + (ot2 * 30);
+                var salary = emp.EmploymentDetail?.BasicSalary ?? 2000m;
+                var values = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["BASIC_SALARY"] = salary,
+                    ["ACCOMMODATION"] = emp.EmploymentDetail?.AccommodationAllowance ?? 0m,
+                    ["TRANSPORTATION"] = emp.EmploymentDetail?.TravelAllowance ?? 0m,
+                    ["FOOD"] = 0m,
+                    ["OTHER_ALLOWANCE"] = emp.EmploymentDetail?.OtherAllowance ?? 0m,
+                    ["OVERTIME"] = (decimal)otEarnings,
+                    ["BONUS"] = 0m,
+                    ["COMMISSION"] = 0m,
+                    ["LOAN_DEDUCTION"] = 0m,
+                    ["ABSENCE_DEDUCTION"] = 0m,
+                    ["OTHER_DEDUCTION"] = 0m
+                };
+                var snapshots = new List<PayrollComponentSnapshot>();
+                decimal earnings = 0, deductions = 0;
+                foreach (var component in components.Where(x => x.IsActive))
+                {
+                    var basis = values.TryGetValue(component.SalaryField, out var source) ? source : 0m;
+                    var amount = component.CalculationType == "Percentage"
+                        ? basis * component.Value / 100m
+                        : (string.IsNullOrWhiteSpace(component.SalaryField) ? component.Value : basis);
+                    if (component.ComponentType == "Earning") earnings += amount; else deductions += amount;
+                    snapshots.Add(new PayrollComponentSnapshot
+                    {
+                        Code = component.Code, Name = component.Name, ComponentType = component.ComponentType,
+                        Amount = amount, ConfiguredValue = component.Value, CalculationType = component.CalculationType,
+                        IsTaxable = component.IsTaxable, IsPensionable = component.IsPensionable, IsWpsIncluded = component.IsWpsIncluded
+                    });
+                }
 
                 var payroll = new Payroll
                 {
                     EmployeeId = emp.EmployeeId,
                     Month = startDate,
-                    BasicSalary = 2000, // Replace with actual salary
+                    BasicSalary = (double)salary,
                     OT1Hours = ot1,
                     OT2Hours = ot2,
                     OTEarnings = otEarnings,
-                    Deductions = 0, // calculate if needed
-                    NetSalary = 2000 + otEarnings,
+                    Deductions = (double)deductions,
+                    NetSalary = (double)(earnings - deductions),
                     IsApproved = false
                 };
-
+                payroll.ComponentSnapshots = snapshots;
                 payrolls.Add(payroll);
             }
 
@@ -57,6 +89,30 @@ namespace HRSystem.API.Services
             await _context.SaveChangesAsync();
 
             return _mapper.Map<List<PayrollDto>>(payrolls);
+        }
+
+        private async Task<List<PayrollComponent>> EnsureDefaultComponentsAsync()
+        {
+            var components = await _context.PayrollComponents.OrderBy(x => x.Id).ToListAsync();
+            if (components.Count > 0) return components;
+            var defaults = new[]
+            {
+                ("BASIC_SALARY", "Basic Salary", "Earning", "BasicSalary"),
+                ("ACCOMMODATION", "Accommodation", "Earning", "Accommodation"),
+                ("TRANSPORTATION", "Transportation", "Earning", "Transportation"),
+                ("FOOD", "Food", "Earning", "Food"),
+                ("OTHER_ALLOWANCE", "Other Allowance", "Earning", "OtherAllowance"),
+                ("OVERTIME", "Overtime", "Earning", "Overtime"),
+                ("BONUS", "Bonus", "Earning", "Bonus"),
+                ("COMMISSION", "Commission", "Earning", "Commission"),
+                ("LOAN_DEDUCTION", "Loan Deduction", "Deduction", "LoanDeduction"),
+                ("ABSENCE_DEDUCTION", "Absence Deduction", "Deduction", "AbsenceDeduction"),
+                ("OTHER_DEDUCTION", "Other Deduction", "Deduction", "OtherDeduction")
+            };
+            foreach (var item in defaults)
+                _context.PayrollComponents.Add(new PayrollComponent { Code = item.Item1, Name = item.Item2, ComponentType = item.Item3, SalaryField = item.Item4 });
+            await _context.SaveChangesAsync();
+            return await _context.PayrollComponents.OrderBy(x => x.Id).ToListAsync();
         }
 
         public async Task ApprovePayrollAsync(int payrollId)
