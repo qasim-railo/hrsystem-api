@@ -92,6 +92,7 @@ builder.Services.AddScoped<CloudinaryService>();
 builder.Services.Configure<FileStorageOptions>(
     builder.Configuration.GetSection(FileStorageOptions.SectionName));
 builder.Services.AddSingleton<IFileStorageService, LocalFileStorageService>();
+builder.Services.AddScoped<IReferenceNumberService, ReferenceNumberService>();
 builder.Services.AddSingleton<IMalwareScanner, NoOpMalwareScanner>();
 builder.Services.AddScoped<IFileService, FileService>();
 

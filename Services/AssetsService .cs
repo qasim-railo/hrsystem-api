@@ -10,11 +10,13 @@ namespace HRSystem.API.Services
     {
         private readonly AppDbContext _context;
         private readonly IMapper _mapper;
+        private readonly IReferenceNumberService _numbering;
 
-        public AssetsService(AppDbContext context, IMapper mapper)
+        public AssetsService(AppDbContext context, IMapper mapper, IReferenceNumberService numbering)
         {
             _context = context;
             _mapper = mapper;
+            _numbering = numbering;
         }
 
         public async Task<List<AssetDto>> GetAllAsync()
@@ -32,6 +34,8 @@ namespace HRSystem.API.Services
         public async Task<AssetDto> CreateAsync(AssetDto dto)
         {
             var asset = _mapper.Map<Asset>(dto);
+            if (string.IsNullOrWhiteSpace(asset.AssetCode))
+                asset.AssetCode = await _numbering.NextAsync("asset");
             _context.Assets.Add(asset);
             await _context.SaveChangesAsync();
             return _mapper.Map<AssetDto>(asset);

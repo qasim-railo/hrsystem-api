@@ -11,11 +11,13 @@ namespace HRSystem.API.Services
         private readonly AppDbContext _context;
         private readonly IMapper _mapper;
         private readonly CustomFieldService _customFields;
-        public EmployeeService(AppDbContext context, IMapper mapper, CustomFieldService customFields)
+        private readonly IReferenceNumberService _numbering;
+        public EmployeeService(AppDbContext context, IMapper mapper, CustomFieldService customFields, IReferenceNumberService numbering)
         {
             _context = context;
             _mapper = mapper;
             _customFields = customFields;
+            _numbering = numbering;
         }
 
         public async Task<List<EmployeeDto>> GetAllAsync()
@@ -204,7 +206,9 @@ namespace HRSystem.API.Services
             {
                 CompanyId = dto.CompanyId,
                 DepartmentId = dto.DepartmentId,
-                EmployeeCode = dto.EmployeeCode,
+                EmployeeCode = string.IsNullOrWhiteSpace(dto.EmployeeCode)
+                    ? await _numbering.NextAsync("employee")
+                    : dto.EmployeeCode.Trim(),
                 FirstName = dto.FirstName,
                 LastName = dto.LastName,
                 DateOfBirth = dto.DateOfBirth,
