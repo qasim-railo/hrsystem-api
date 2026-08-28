@@ -8,5 +8,6 @@
         public TimeSpan CheckOut { get; set; }
         public int OT1 { get; set; }
         public int OT2 { get; set; }
+        public string Source { get; set; } = "Manual";
     }
 }

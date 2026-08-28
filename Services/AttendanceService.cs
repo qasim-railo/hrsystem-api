@@ -20,6 +20,9 @@ namespace HRSystem.API.Services
 
         public async Task AddAsync(AttendanceDto dto)
         {
+            var config = await _context.AttendanceConfigurations.SingleOrDefaultAsync();
+            if (config != null && !config.AllowedSources.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Contains("Manual", StringComparer.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Manual attendance entry is disabled by tenant configuration.");
             Console.WriteLine("DTOS Val=>", dto);
             var (ot1, ot2) = await CalculateOvertimeAsync(dto.EmployeeId, dto.Date, dto.CheckOut);
 
@@ -58,33 +61,48 @@ namespace HRSystem.API.Services
         }
         public async Task ImportFromExcelAsync(IFormFile file)
         {
+            var config = await _context.AttendanceConfigurations.SingleOrDefaultAsync();
+            if (config != null && !config.AllowedSources.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Contains("Excel", StringComparer.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Excel attendance import is disabled by tenant configuration.");
             using var stream = new MemoryStream();
             await file.CopyToAsync(stream);
             using var package = new ExcelPackage(stream);
             var worksheet = package.Workbook.Worksheets[0];
 
             var rowCount = worksheet.Dimension.Rows;
+            var log = new AttendanceImportLog { FileName = file.FileName, TotalRows = Math.Max(0, rowCount - 1) };
+            var errors = new List<string>();
             for (int row = 2; row <= rowCount; row++)
             {
-                var dto = new AttendanceDto
+                try
                 {
-                    EmployeeId = int.Parse(worksheet.Cells[row, 1].Text),
-                    Date = DateTime.Parse(worksheet.Cells[row, 2].Text),
-                    CheckIn = TimeSpan.Parse(worksheet.Cells[row, 3].Text),
-                    CheckOut = TimeSpan.Parse(worksheet.Cells[row, 4].Text)
-                    // OT1 and OT2 will be calculated dynamically
-                };
+                    var dto = new AttendanceDto
+                    {
+                        EmployeeId = int.Parse(worksheet.Cells[row, 1].Text),
+                        Date = DateTime.Parse(worksheet.Cells[row, 2].Text),
+                        CheckIn = TimeSpan.Parse(worksheet.Cells[row, 3].Text),
+                        CheckOut = TimeSpan.Parse(worksheet.Cells[row, 4].Text),
+                        Source = "Excel"
+                    };
 
-                // 🔁 Recalculate OT based on CheckIn/CheckOut
-                var (ot1, ot2) = await CalculateOvertimeAsync(dto.EmployeeId, dto.Date, dto.CheckOut);
+                    var (ot1, ot2) = await CalculateOvertimeAsync(dto.EmployeeId, dto.Date, dto.CheckOut);
 
-                var entity = _mapper.Map<Attendance>(dto);
-                entity.OT1 = ot1;
-                entity.OT2 = ot2;
+                    var entity = _mapper.Map<Attendance>(dto);
+                    entity.OT1 = ot1;
+                    entity.OT2 = ot2;
 
-                _context.Attendance.Add(entity);
+                    _context.Attendance.Add(entity);
+                    log.ImportedRows++;
+                }
+                catch (Exception ex) when (ex is FormatException || ex is OverflowException || ex is ArgumentException || ex is DbUpdateException)
+                {
+                    errors.Add($"Row {row}: {ex.Message}");
+                }
             }
 
+            log.ErrorRows = errors.Count;
+            log.Errors = string.Join(Environment.NewLine, errors);
+            _context.AttendanceImportLogs.Add(log);
             await _context.SaveChangesAsync();
         }
         public async Task RecalculateAllOvertimeAsync()
