@@ -124,7 +124,10 @@ using (var scope = app.Services.CreateScope())
             Code = "DEFAULT",
             Country = "QA",
             Currency = "QAR",
-            TimeZone = "Asia/Qatar"
+            TimeZone = "Asia/Qatar",
+            CountryCode = "QA",
+            CurrencyCode = "QAR",
+            TimeZoneId = "Asia/Qatar"
         };
         db.Tenants.Add(tenant);
         db.SaveChanges();

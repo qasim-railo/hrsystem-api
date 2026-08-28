@@ -24,7 +24,7 @@ public class TenantAdminController : ControllerBase
         if (_tenant.TenantId is not int id) return Forbid();
         var tenant = await _db.Tenants.AsNoTracking().SingleOrDefaultAsync(t => t.TenantId == id);
         if (tenant == null) return NotFound();
-        return Ok(new { tenant.TenantId, tenant.Name, tenant.Code, tenant.Country, tenant.Currency, tenant.TimeZone, tenant.Status, tenant.LifecycleStatus });
+        return Ok(ProfileResponse(tenant));
     }
 
     [HttpPut("profile")]
@@ -37,8 +37,36 @@ public class TenantAdminController : ControllerBase
         if (!string.IsNullOrWhiteSpace(dto.Country)) tenant.Country = dto.Country.Trim();
         if (!string.IsNullOrWhiteSpace(dto.Currency)) tenant.Currency = dto.Currency.Trim();
         if (!string.IsNullOrWhiteSpace(dto.TimeZone)) tenant.TimeZone = dto.TimeZone.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.CountryCode)) tenant.CountryCode = dto.CountryCode.Trim().ToUpperInvariant();
+        if (!string.IsNullOrWhiteSpace(dto.CurrencyCode)) tenant.CurrencyCode = dto.CurrencyCode.Trim().ToUpperInvariant();
+        if (!string.IsNullOrWhiteSpace(dto.TimeZoneId)) tenant.TimeZoneId = dto.TimeZoneId.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.DateFormat)) tenant.DateFormat = dto.DateFormat.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.NumberFormat)) tenant.NumberFormat = dto.NumberFormat.Trim();
+        if (!IsValidProfile(tenant))
+            return BadRequest("Country, currency, timezone, date format, or number format is invalid.");
+        tenant.Country = tenant.CountryCode;
+        tenant.Currency = tenant.CurrencyCode;
+        tenant.TimeZone = tenant.TimeZoneId;
         await _db.SaveChangesAsync();
-        return Ok(new { tenant.TenantId, tenant.Name, tenant.Code, tenant.Country, tenant.Currency, tenant.TimeZone });
+        return Ok(ProfileResponse(tenant));
+    }
+
+    private static object ProfileResponse(Tenant tenant) => new
+    {
+        tenant.TenantId, tenant.Name, tenant.Code, tenant.Country, tenant.Currency, tenant.TimeZone,
+        tenant.CountryCode, tenant.CurrencyCode, tenant.TimeZoneId, tenant.DateFormat, tenant.NumberFormat,
+        tenant.Status, tenant.LifecycleStatus
+    };
+
+    private static bool IsValidProfile(Tenant tenant)
+    {
+        if (tenant.CountryCode.Length != 2 || tenant.CurrencyCode.Length != 3 ||
+            string.IsNullOrWhiteSpace(tenant.DateFormat) || string.IsNullOrWhiteSpace(tenant.NumberFormat))
+            return false;
+        try { _ = TimeZoneInfo.FindSystemTimeZoneById(tenant.TimeZoneId); }
+        catch (TimeZoneNotFoundException) { return false; }
+        catch (InvalidTimeZoneException) { return false; }
+        return true;
     }
 
     [HttpGet("settings")]
