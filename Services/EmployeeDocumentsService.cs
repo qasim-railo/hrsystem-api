@@ -56,7 +56,7 @@ namespace HRSystem.API.Services
                 }).ToListAsync();
         }
 
-        public async Task<(byte[] FileBytes, string FileName)> DownloadAsync(int id)
+        public async Task<(byte[] FileBytes, string FileName)> DownloadAsync(int id, string downloadedBy)
         {
             var doc = await _context.EmployeeDocuments.FindAsync(id);
             if (doc == null) return (null, null);
@@ -64,7 +64,7 @@ namespace HRSystem.API.Services
             var start = doc.FilePath.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
             if (start < 0 || !int.TryParse(doc.FilePath[(start + marker.Length)..].Split('/')[0], out var fileId))
                 return (null, null);
-            var result = await _fileService.OpenReadAsync(fileId);
+            var result = await _fileService.OpenReadAsync(fileId, downloadedBy);
             if (result is null) return (null, null);
             await using var stream = result.Value.Content;
             using var memory = new MemoryStream();

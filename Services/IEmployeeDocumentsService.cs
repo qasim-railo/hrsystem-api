@@ -6,7 +6,7 @@ namespace HRSystem.API.Services
     {
         Task<string> UploadAsync(EmployeeDocumentUploadDto dto);
         Task<List<EmployeeDocumentDto>> GetByEmployeeIdAsync(int employeeId);
-        Task<(byte[] FileBytes, string FileName)> DownloadAsync(int id);
+        Task<(byte[] FileBytes, string FileName)> DownloadAsync(int id, string downloadedBy);
         Task<bool> DeleteAsync(int id);
     }
 }

@@ -65,7 +65,8 @@ public sealed class FilesController : ControllerBase
     [HttpGet("{fileId:int}/download")]
     public async Task<IActionResult> Download(int fileId, CancellationToken cancellationToken)
     {
-        var result = await _files.OpenReadAsync(fileId, cancellationToken);
+        var user = User.FindFirstValue(ClaimTypes.Name) ?? User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "unknown";
+        var result = await _files.OpenReadAsync(fileId, user, cancellationToken);
         return result is null ? NotFound() : File(result.Value.Content, result.Value.Record.MimeType, result.Value.Record.OriginalFileName);
     }
 

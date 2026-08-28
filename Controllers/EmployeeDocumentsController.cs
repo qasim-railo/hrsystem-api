@@ -1,5 +1,6 @@
 using HRSystem.API.DTOs;
 using HRSystem.API.Services;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -50,7 +51,8 @@ namespace HRSystem.API.Controllers
         [HttpGet("download/{id}")]
         public async Task<IActionResult> Download(int id)
         {
-            var (fileBytes, fileName) = await _service.DownloadAsync(id);
+            var user = User.FindFirstValue(ClaimTypes.Name) ?? User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "unknown";
+            var (fileBytes, fileName) = await _service.DownloadAsync(id, user);
             if (fileBytes == null) return NotFound();
 
             return File(fileBytes, "application/octet-stream", fileName);

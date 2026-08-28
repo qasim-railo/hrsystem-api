@@ -11,7 +11,6 @@ namespace HRSystem.API.Services;
 public sealed class FileService : IFileService
 {
     private readonly AppDbContext _db;
-    private readonly IWebHostEnvironment _environment;
     private readonly ICurrentTenant _currentTenant;
     private readonly FileStorageOptions _options;
     private readonly IMalwareScanner _malwareScanner;
@@ -22,7 +21,6 @@ public sealed class FileService : IFileService
         IFileStorageService? storage = null)
     {
         _db = db;
-        _environment = environment;
         _currentTenant = currentTenant;
         _options = options?.Value ?? new FileStorageOptions();
         _malwareScanner = malwareScanner ?? new NoOpMalwareScanner();
@@ -117,12 +115,27 @@ public sealed class FileService : IFileService
             }).ToListAsync(cancellationToken);
     }
 
-    public async Task<(Stream Content, FileRecord Record)?> OpenReadAsync(int fileId, CancellationToken cancellationToken = default)
+    public async Task<(Stream Content, FileRecord Record)?> OpenReadAsync(int fileId, string downloadedBy, CancellationToken cancellationToken = default)
     {
-        var record = await _db.FileRecords.SingleOrDefaultAsync(x => x.FileId == fileId && x.Status == "Active", cancellationToken);
+        var record = await _db.FileRecords.SingleOrDefaultAsync(
+            x => x.FileId == fileId && x.IsCurrent && !x.IsDeleted && x.Status == "Active",
+            cancellationToken);
         if (record is null) return null;
         var stream = await _storage.DownloadAsync(record.StoragePath, cancellationToken);
-        return stream is null ? null : (stream, record);
+        if (stream is null) return null;
+
+        _db.AuditLogs.Add(new AuditLog
+        {
+            TenantId = record.TenantId,
+            Action = "FileDownloaded",
+            Entity = "FileRecord",
+            EntityId = record.FileId.ToString(),
+            UserId = downloadedBy ?? string.Empty,
+            CreatedAt = DateTime.UtcNow,
+            Details = $"Downloaded {record.OriginalFileName}."
+        });
+        await _db.SaveChangesAsync(cancellationToken);
+        return (stream, record);
     }
 
     public async Task<FileRecordDto?> GetAsync(int fileId, CancellationToken cancellationToken = default)
