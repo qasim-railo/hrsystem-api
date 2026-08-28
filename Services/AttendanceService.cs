@@ -120,10 +120,15 @@ namespace HRSystem.API.Services
 
             var overtimeMinutes = (int)(checkOut - shiftEnd).TotalMinutes;
 
-            var ot1 = Math.Min(overtimeMinutes, 120); // OT1: up to 2 hours
-            var ot2 = Math.Max(overtimeMinutes - 120, 0); // OT2: beyond 2 hours
-
-            return (ot1, ot2);
+            var dayType = date.DayOfWeek == DayOfWeek.Friday || date.DayOfWeek == DayOfWeek.Saturday ? "Weekly Off" : "Normal Day";
+            var category = await _context.Employees.Where(x => x.EmployeeId == employeeId).Select(x => x.EmploymentDetail!.Category).SingleOrDefaultAsync() ?? "*";
+            var policies = await _context.OvertimePolicies.Where(x => x.IsActive && x.EffectiveFrom <= date && (x.EffectiveTo == null || x.EffectiveTo >= date) &&
+                (x.EmployeeCategory == "*" || x.EmployeeCategory == category) &&
+                (x.DayType == dayType || x.DayType == "Any"))
+                .OrderBy(x => x.DailyThresholdMinutes).ToListAsync();
+            if (policies.Count == 0)
+                return (Math.Min(overtimeMinutes, 120), Math.Max(overtimeMinutes - 120, 0));
+            return OvertimePolicyService.Allocate(overtimeMinutes, policies);
         }
 
     }

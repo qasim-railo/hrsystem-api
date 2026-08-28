@@ -36,7 +36,12 @@ namespace HRSystem.API.Services
 
                 var ot1 = attendance.Sum(a => a.OT1);
                 var ot2 = attendance.Sum(a => a.OT2);
-                var otEarnings = (ot1 * 20) + (ot2 * 30);
+                var overtimePolicies = await _context.OvertimePolicies
+                    .Where(x => x.IsActive && x.EffectiveFrom <= endDate && (x.EffectiveTo == null || x.EffectiveTo >= startDate))
+                    .ToListAsync();
+                var ot1Multiplier = overtimePolicies.Where(x => x.Classification == "OT1").Select(x => (decimal?)x.RateMultiplier).Average() ?? 1.25m;
+                var ot2Multiplier = overtimePolicies.Where(x => x.Classification == "OT2").Select(x => (decimal?)x.RateMultiplier).Average() ?? 1.5m;
+                var otEarnings = (ot1 * 20m * ot1Multiplier / 1.25m) + (ot2 * 30m * ot2Multiplier / 1.5m);
                 var salary = emp.EmploymentDetail?.BasicSalary ?? 2000m;
                 var values = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase)
                 {
@@ -76,7 +81,7 @@ namespace HRSystem.API.Services
                     BasicSalary = (double)salary,
                     OT1Hours = ot1,
                     OT2Hours = ot2,
-                    OTEarnings = otEarnings,
+                    OTEarnings = (double)otEarnings,
                     Deductions = (double)deductions,
                     NetSalary = (double)(earnings - deductions),
                     IsApproved = false
