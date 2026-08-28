@@ -111,6 +111,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+const string DevelopmentDefaultPassword = "12345678";
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -167,9 +168,14 @@ using (var scope = app.Services.CreateScope())
     var superAdmin = db.Users.Include(u => u.UserRoles).SingleOrDefault(u => u.Username == "superadmin");
     if (superAdmin == null)
     {
-        superAdmin = new AppUser { Username = "superadmin", PasswordHash = auth.HashPassword("admin"), TenantId = tenant.TenantId };
+        superAdmin = new AppUser { Username = "superadmin", PasswordHash = auth.HashPassword(DevelopmentDefaultPassword), TenantId = tenant.TenantId };
         db.Users.Add(superAdmin);
         db.SaveChanges();
+    }
+    else
+    {
+        superAdmin.TenantId = tenant.TenantId;
+        superAdmin.PasswordHash = auth.HashPassword(DevelopmentDefaultPassword);
     }
     if (!superAdmin.UserRoles.Any(ur => ur.RoleId == platformRole.Id))
         superAdmin.UserRoles.Add(new UserRole { RoleId = platformRole.Id });
@@ -198,13 +204,14 @@ using (var scope = app.Services.CreateScope())
     var admin = db.Users.Include(u => u.UserRoles).SingleOrDefault(u => u.Username == "admin");
     if (admin == null)
     {
-        admin = new AppUser { Username = "admin", PasswordHash = auth.HashPassword("admin"), TenantId = tenant.TenantId };
+        admin = new AppUser { Username = "admin", PasswordHash = auth.HashPassword(DevelopmentDefaultPassword), TenantId = tenant.TenantId };
         db.Users.Add(admin);
         db.SaveChanges();
     }
-    else if (admin.TenantId == 0)
+    else
     {
         admin.TenantId = tenant.TenantId;
+        admin.PasswordHash = auth.HashPassword(DevelopmentDefaultPassword);
     }
     if (!admin.UserRoles.Any(ur => ur.RoleId == adminRole.Id)) admin.UserRoles.Add(new UserRole { RoleId = adminRole.Id });
     if (!admin.UserRoles.Any(ur => ur.RoleId == companyAdministratorRole.Id))

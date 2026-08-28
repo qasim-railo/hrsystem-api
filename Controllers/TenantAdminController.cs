@@ -140,6 +140,92 @@ public class TenantAdminController : ControllerBase
         });
     }
 
+    [HttpGet("integrations")]
+    public async Task<ActionResult<object>> Integrations()
+    {
+        if (_tenant.TenantId is not int id) return Forbid();
+
+        var connections = await _db.IntegrationConnections.AsNoTracking()
+            .Where(x => x.TenantId == id)
+            .ToDictionaryAsync(x => x.ProviderKey, StringComparer.OrdinalIgnoreCase);
+
+        var providers = IntegrationProviderCatalog.Providers.Select(definition =>
+        {
+            var connected = connections.TryGetValue(definition.Key, out var connection);
+            return new
+            {
+                key = definition.Key,
+                name = definition.Name,
+                description = definition.Description,
+                category = definition.Category,
+                providerType = definition.ProviderType.ToString(),
+                isEnabled = connected && connection!.IsEnabled,
+                isConfigured = connected && !string.IsNullOrWhiteSpace(connection.SecretReference),
+                secretReference = connected ? connection.SecretReference : null,
+                baseUrl = connected ? connection.BaseUrl : null,
+                configurationJson = connected ? connection.ConfigurationJson : null,
+                lastTestedAt = connected ? connection.LastTestedAt : null
+            };
+        }).ToList();
+
+        return Ok(new { providers, connectedCount = providers.Count(x => x.isConfigured || x.isEnabled) });
+    }
+
+    [HttpPut("integrations/{providerKey}")]
+    public async Task<ActionResult<IntegrationConnectionDto>> UpdateIntegration(string providerKey, IntegrationUpdateDto dto)
+    {
+        if (_tenant.TenantId is not int id) return Forbid();
+
+        var definition = IntegrationProviderCatalog.Find(providerKey);
+        if (definition is null) return NotFound("The requested integration provider is not supported.");
+
+        var provider = await _db.IntegrationConnections.SingleOrDefaultAsync(x => x.TenantId == id && x.ProviderKey == definition.Key);
+        if (provider is null)
+        {
+            provider = new IntegrationConnection
+            {
+                TenantId = id,
+                ProviderKey = definition.Key,
+                ProviderName = definition.Name,
+                ProviderType = definition.ProviderType,
+                SecretReference = dto.SecretReference ?? string.Empty,
+                BaseUrl = dto.BaseUrl,
+                ConfigurationJson = dto.ConfigurationJson,
+                IsEnabled = dto.IsEnabled,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            _db.IntegrationConnections.Add(provider);
+        }
+        else
+        {
+            provider.ProviderName = definition.Name;
+            provider.ProviderType = definition.ProviderType;
+            provider.IsEnabled = dto.IsEnabled;
+            provider.SecretReference = dto.SecretReference ?? provider.SecretReference;
+            provider.BaseUrl = dto.BaseUrl ?? provider.BaseUrl;
+            provider.ConfigurationJson = dto.ConfigurationJson ?? provider.ConfigurationJson;
+            provider.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await _db.SaveChangesAsync();
+        return Ok(new IntegrationConnectionDto
+        {
+            Id = provider.Id,
+            TenantId = provider.TenantId,
+            ProviderKey = provider.ProviderKey,
+            ProviderName = provider.ProviderName,
+            Category = definition.Category,
+            IsEnabled = provider.IsEnabled,
+            SecretReference = provider.SecretReference,
+            BaseUrl = provider.BaseUrl,
+            ConfigurationJson = provider.ConfigurationJson,
+            LastTestedAt = provider.LastTestedAt,
+            CreatedAt = provider.CreatedAt,
+            UpdatedAt = provider.UpdatedAt
+        });
+    }
+
     [HttpGet("dashboard")]
     public async Task<IActionResult> Dashboard()
     {

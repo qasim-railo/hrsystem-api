@@ -63,6 +63,7 @@ namespace HRSystem.API.Data
                         public DbSet<AttendanceConfiguration> AttendanceConfigurations { get; set; }
                         public DbSet<AttendanceImportLog> AttendanceImportLogs { get; set; }
                         public DbSet<ImportJob> ImportJobs { get; set; }
+                        public DbSet<IntegrationConnection> IntegrationConnections { get; set; }
                         public DbSet<AppUser> Users { get; set; }
                         public DbSet<Role> Roles { get; set; }
                         public DbSet<Permission> Permissions { get; set; }
@@ -132,7 +133,7 @@ namespace HRSystem.API.Data
                         typeof(EmployeeStatusHistory), typeof(AuditLog), typeof(Branch), typeof(Section), typeof(Team), typeof(Position)
                         , typeof(EmployeeEmploymentHistory), typeof(TenantSetting), typeof(TenantLeaveType), typeof(OnboardingProgress),
                         typeof(CustomFieldDefinition), typeof(CustomFieldValue), typeof(FileRecord)
-                        ,                                                 typeof(NumberingSequence), typeof(ApprovalWorkflow), typeof(ApprovalRequest), typeof(ApprovalAction), typeof(PayrollComponent), typeof(PayrollComponentSnapshot), typeof(OvertimePolicy), typeof(AttendanceConfiguration), typeof(AttendanceImportLog), typeof(NotificationTemplate), typeof(Notification)
+                        ,                                                 typeof(NumberingSequence), typeof(ApprovalWorkflow), typeof(ApprovalRequest), typeof(ApprovalAction), typeof(PayrollComponent), typeof(PayrollComponentSnapshot), typeof(OvertimePolicy), typeof(AttendanceConfiguration), typeof(AttendanceImportLog), typeof(NotificationTemplate), typeof(Notification), typeof(IntegrationConnection)
                     })
                     {
                         modelBuilder.Entity(entityType).Property<int>(nameof(ITenantOwned.TenantId));
@@ -185,6 +186,8 @@ namespace HRSystem.API.Data
                     modelBuilder.Entity<AttendanceConfiguration>().HasIndex(x => x.TenantId).IsUnique();
                     modelBuilder.Entity<AttendanceImportLog>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
                     modelBuilder.Entity<ImportJob>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<IntegrationConnection>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<IntegrationConnection>().HasIndex(x => new { x.TenantId, x.ProviderKey }).IsUnique();
                     modelBuilder.Entity<ApprovalWorkflow>().HasIndex(x => new { x.TenantId, x.Module, x.RequestType, x.Name }).IsUnique();
                     modelBuilder.Entity<ApprovalWorkflow>().HasMany(x => x.Steps).WithOne(x => x.Workflow).HasForeignKey(x => x.ApprovalWorkflowId).OnDelete(DeleteBehavior.Cascade);
                     modelBuilder.Entity<ApprovalRequest>().HasOne(x => x.Workflow).WithMany().HasForeignKey(x => x.ApprovalWorkflowId).OnDelete(DeleteBehavior.Restrict);
