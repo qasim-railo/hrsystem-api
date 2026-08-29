@@ -43,5 +43,14 @@ public class SubscriptionCheckResult
 {
     public bool Allowed { get; init; }
     public SubscriptionStatus? Status { get; init; }
+    public bool UpgradeRequired { get; init; }
     public string Reason { get; init; } = string.Empty;
+}
+
+public class FeatureCheckResult : SubscriptionCheckResult
+{
+    public string FeatureCode { get; init; } = string.Empty;
+    public string CurrentPlanCode { get; init; } = string.Empty;
+    public string CurrentPlanName { get; init; } = string.Empty;
+    public List<string> AvailableFeatures { get; init; } = new();
 }
