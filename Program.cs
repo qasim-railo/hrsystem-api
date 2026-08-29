@@ -160,16 +160,103 @@ using (var scope = app.Services.CreateScope())
     foreach (var name in permissionNames)
         if (!db.Permissions.Any(p => p.Name == name)) db.Permissions.Add(new Permission { Name = name });
     db.SaveChanges();
-    var platformRole = db.Roles.Include(r => r.RolePermissions).SingleOrDefault(r => r.Name == "PeopleOS Super Admin") ?? new Role { Name = "PeopleOS Super Admin" };
-    if (platformRole.Id == 0) db.Roles.Add(platformRole);
-    db.SaveChanges();
-    var platformPermission = db.Permissions.Single(p => p.Name == "Platform.Tenants");
-    if (!platformRole.RolePermissions.Any(rp => rp.PermissionId == platformPermission.Id))
-        platformRole.RolePermissions.Add(new RolePermission { PermissionId = platformPermission.Id });
-    var superAdmin = db.Users.Include(u => u.UserRoles).SingleOrDefault(u => u.Username == "superadmin");
-    if (superAdmin == null)
+
+    var allRolePermissions = db.RolePermissions.IgnoreQueryFilters().ToList();
+    var allUserRoles = db.UserRoles.IgnoreQueryFilters().ToList();
+
+    void RemoveDuplicateRolePermissions(Role role)
     {
-        superAdmin = new AppUser { Username = "superadmin", PasswordHash = auth.HashPassword(DevelopmentDefaultPassword), TenantId = tenant.TenantId };
+        var duplicatePermissions = allRolePermissions
+            .Where(rp => rp.RoleId == role.Id)
+            .GroupBy(rp => rp.PermissionId)
+            .Where(g => g.Count() > 1)
+            .SelectMany(g => g.Skip(1))
+            .ToList();
+
+        foreach (var duplicate in duplicatePermissions)
+        {
+            db.RolePermissions.Remove(duplicate);
+            allRolePermissions.Remove(duplicate);
+        }
+    }
+
+    void EnsureRolePermission(Role role, int permissionId)
+    {
+        RemoveDuplicateRolePermissions(role);
+
+        var existingPermissionIds = allRolePermissions
+            .Where(rp => rp.RoleId == role.Id)
+            .Select(rp => rp.PermissionId)
+            .ToHashSet();
+
+        if (!existingPermissionIds.Contains(permissionId))
+        {
+            var newRolePermission = new RolePermission { RoleId = role.Id, PermissionId = permissionId };
+            db.RolePermissions.Add(newRolePermission);
+            allRolePermissions.Add(newRolePermission);
+        }
+    }
+
+    void EnsureUserRole(AppUser user, int roleId)
+    {
+        var duplicateUserRoles = allUserRoles
+            .Where(ur => ur.UserId == user.Id)
+            .GroupBy(ur => ur.RoleId)
+            .Where(g => g.Count() > 1)
+            .SelectMany(g => g.Skip(1))
+            .ToList();
+
+        foreach (var duplicate in duplicateUserRoles)
+        {
+            db.UserRoles.Remove(duplicate);
+            allUserRoles.Remove(duplicate);
+        }
+
+        var existingRoleIds = allUserRoles
+            .Where(ur => ur.UserId == user.Id)
+            .Select(ur => ur.RoleId)
+            .ToHashSet();
+
+        if (!existingRoleIds.Contains(roleId))
+        {
+            var newUserRole = new UserRole { UserId = user.Id, RoleId = roleId };
+            db.UserRoles.Add(newUserRole);
+            allUserRoles.Add(newUserRole);
+        }
+    }
+
+    var existingPlatformRoles = db.Roles.IgnoreQueryFilters()
+        .Where(r => r.Name == "PeopleOS Super Admin")
+        .OrderByDescending(r => r.Id)
+        .ToList();
+    var platformRole = existingPlatformRoles.FirstOrDefault(r => r.TenantId == tenant.TenantId)
+        ?? existingPlatformRoles.FirstOrDefault()
+        ?? new Role { Name = "PeopleOS Super Admin", TenantId = tenant.TenantId };
+    if (platformRole.Id == 0)
+    {
+        db.Roles.Add(platformRole);
+    }
+    else if (platformRole.TenantId != tenant.TenantId)
+    {
+        platformRole.TenantId = tenant.TenantId;
+    }
+
+    foreach (var duplicate in existingPlatformRoles.Where(r => r.Id != platformRole.Id).ToList())
+        db.Roles.Remove(duplicate);
+
+    db.SaveChanges();
+
+    var platformPermission = db.Permissions.Single(p => p.Name == "Platform.Tenants");
+    EnsureRolePermission(platformRole, platformPermission.Id);
+    var existingSuperAdmins = db.Users.IgnoreQueryFilters()
+        .Where(u => u.Username == "superadmin")
+        .OrderByDescending(u => u.Id)
+        .ToList();
+    var superAdmin = existingSuperAdmins.FirstOrDefault(u => u.TenantId == tenant.TenantId)
+        ?? existingSuperAdmins.FirstOrDefault()
+        ?? new AppUser { Username = "superadmin", PasswordHash = auth.HashPassword(DevelopmentDefaultPassword), TenantId = tenant.TenantId };
+    if (superAdmin.Id == 0)
+    {
         db.Users.Add(superAdmin);
         db.SaveChanges();
     }
@@ -178,34 +265,41 @@ using (var scope = app.Services.CreateScope())
         superAdmin.TenantId = tenant.TenantId;
         superAdmin.PasswordHash = auth.HashPassword(DevelopmentDefaultPassword);
     }
-    if (!superAdmin.UserRoles.Any(ur => ur.RoleId == platformRole.Id))
-        superAdmin.UserRoles.Add(new UserRole { RoleId = platformRole.Id });
+    foreach (var duplicate in existingSuperAdmins.Where(u => u.Id != superAdmin.Id).ToList())
+        db.Users.Remove(duplicate);
+    EnsureUserRole(superAdmin, platformRole.Id);
     db.SaveChanges();
-    var adminRole = db.Roles.Include(r => r.RolePermissions)
-        .FirstOrDefault(r => r.Name == "Admin" && r.TenantId == tenant.TenantId) ?? new Role { Name = "Admin" };
-    adminRole.TenantId = tenant.TenantId;
+    var adminRole = db.Roles.IgnoreQueryFilters().Include(r => r.RolePermissions)
+        .FirstOrDefault(r => r.Name == "Admin" && r.TenantId == tenant.TenantId) ?? new Role { Name = "Admin", TenantId = tenant.TenantId };
     if (adminRole.Id == 0) db.Roles.Add(adminRole);
+    adminRole.TenantId = tenant.TenantId;
     db.SaveChanges();
-    foreach (var platformAssignment in adminRole.RolePermissions.Where(rp => rp.PermissionId == platformPermission.Id).ToList())
+    RemoveDuplicateRolePermissions(adminRole);
+    foreach (var platformAssignment in db.RolePermissions.IgnoreQueryFilters().Where(rp => rp.RoleId == adminRole.Id && rp.PermissionId == platformPermission.Id).ToList())
         db.RolePermissions.Remove(platformAssignment);
     foreach (var permission in db.Permissions.Where(p => permissionNames.Contains(p.Name) && p.Name != "Platform.Tenants"))
-        if (!adminRole.RolePermissions.Any(rp => rp.PermissionId == permission.Id)) adminRole.RolePermissions.Add(new RolePermission { PermissionId = permission.Id });
-    var companyAdministratorRole = db.Roles.Include(r => r.RolePermissions)
-        .SingleOrDefault(r => r.Name == "Company Administrator" && r.TenantId == tenant.TenantId);
-    if (companyAdministratorRole == null)
+        EnsureRolePermission(adminRole, permission.Id);
+    var companyAdministratorRole = db.Roles.IgnoreQueryFilters().Include(r => r.RolePermissions)
+        .SingleOrDefault(r => r.Name == "Company Administrator" && r.TenantId == tenant.TenantId) ?? new Role { Name = "Company Administrator", TenantId = tenant.TenantId };
+    if (companyAdministratorRole.Id == 0)
     {
-        companyAdministratorRole = new Role { Name = "Company Administrator", TenantId = tenant.TenantId };
         db.Roles.Add(companyAdministratorRole);
         db.SaveChanges();
     }
+    companyAdministratorRole.TenantId = tenant.TenantId;
+    RemoveDuplicateRolePermissions(companyAdministratorRole);
     foreach (var permission in db.Permissions.Where(p => permissionNames.Contains(p.Name) && p.Name != "Platform.Tenants"))
-        if (!companyAdministratorRole.RolePermissions.Any(rp => rp.PermissionId == permission.Id))
-            companyAdministratorRole.RolePermissions.Add(new RolePermission { PermissionId = permission.Id });
+        EnsureRolePermission(companyAdministratorRole, permission.Id);
     db.SaveChanges();
-    var admin = db.Users.Include(u => u.UserRoles).SingleOrDefault(u => u.Username == "admin");
-    if (admin == null)
+    var existingAdmins = db.Users.IgnoreQueryFilters()
+        .Where(u => u.Username == "admin")
+        .OrderByDescending(u => u.Id)
+        .ToList();
+    var admin = existingAdmins.FirstOrDefault(u => u.TenantId == tenant.TenantId)
+        ?? existingAdmins.FirstOrDefault()
+        ?? new AppUser { Username = "admin", PasswordHash = auth.HashPassword(DevelopmentDefaultPassword), TenantId = tenant.TenantId };
+    if (admin.Id == 0)
     {
-        admin = new AppUser { Username = "admin", PasswordHash = auth.HashPassword(DevelopmentDefaultPassword), TenantId = tenant.TenantId };
         db.Users.Add(admin);
         db.SaveChanges();
     }
@@ -214,9 +308,10 @@ using (var scope = app.Services.CreateScope())
         admin.TenantId = tenant.TenantId;
         admin.PasswordHash = auth.HashPassword(DevelopmentDefaultPassword);
     }
-    if (!admin.UserRoles.Any(ur => ur.RoleId == adminRole.Id)) admin.UserRoles.Add(new UserRole { RoleId = adminRole.Id });
-    if (!admin.UserRoles.Any(ur => ur.RoleId == companyAdministratorRole.Id))
-        admin.UserRoles.Add(new UserRole { RoleId = companyAdministratorRole.Id });
+    foreach (var duplicate in existingAdmins.Where(u => u.Id != admin.Id).ToList())
+        db.Users.Remove(duplicate);
+    EnsureUserRole(admin, adminRole.Id);
+    EnsureUserRole(admin, companyAdministratorRole.Id);
     db.SaveChanges();
 }
 app.UseStaticFiles();

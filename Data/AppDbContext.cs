@@ -92,12 +92,17 @@ namespace HRSystem.API.Data
 
                         private void ApplyTenantBoundary()
                         {
-                            if (_currentTenant?.IsPlatformAdmin == true)
+                            if (_currentTenant == null || !_currentTenant.HasTenantContext)
+                            {
+                                return;
+                            }
+
+                            if (_currentTenant.IsPlatformAdmin)
                                 return;
 
                             foreach (var entry in ChangeTracker.Entries<ITenantOwned>())
                             {
-                                if (_currentTenant?.TenantId is not int tenantId)
+                                if (_currentTenant.TenantId is not int tenantId)
                                     throw new InvalidOperationException("A resolved tenant is required for tenant-owned data.");
 
                                 if (entry.State == EntityState.Added)
@@ -113,20 +118,34 @@ namespace HRSystem.API.Data
                     modelBuilder.Entity<Tenant>().HasIndex(t => t.Code).IsUnique();
                     modelBuilder.Entity<Plan>().HasIndex(p => p.Code).IsUnique();
                     modelBuilder.Entity<PlanFeature>().HasIndex(f => new { f.PlanId, f.FeatureCode }).IsUnique();
+                    modelBuilder.Entity<Company>().HasIndex(x => new { x.TenantId, x.Name }).IsUnique();
+                    modelBuilder.Entity<Employee>().HasIndex(x => new { x.TenantId, x.EmployeeCode }).IsUnique();
+                    modelBuilder.Entity<Department>().HasIndex(x => new { x.TenantId, x.CompanyId, x.Name }).IsUnique();
+                    modelBuilder.Entity<Asset>().HasIndex(x => new { x.TenantId, x.AssetCode }).IsUnique();
+                    modelBuilder.Entity<Section>().HasIndex(x => new { x.TenantId, x.DepartmentId, x.Name }).IsUnique();
+                    modelBuilder.Entity<Team>().HasIndex(x => new { x.TenantId, x.SectionId, x.Name }).IsUnique();
+                    modelBuilder.Entity<Position>().HasIndex(x => new { x.TenantId, x.TeamId, x.Name }).IsUnique();
+                    modelBuilder.Entity<NotificationTemplate>().HasIndex(x => new { x.TenantId, x.EventCode, x.Channel }).IsUnique();
                     modelBuilder.Entity<Plan>().HasMany(p => p.Features).WithOne(f => f.Plan).HasForeignKey(f => f.PlanId);
                     modelBuilder.Entity<Tenant>().HasOne(t => t.Plan).WithMany(p => p.Tenants).HasForeignKey(t => t.PlanId).OnDelete(DeleteBehavior.Restrict);
                     modelBuilder.Entity<Employee>().HasQueryFilter(x => x.ArchivedAt == null);
                     modelBuilder.Entity<Department>().HasQueryFilter(x => x.ArchivedAt == null);
                     modelBuilder.Entity<Asset>().HasQueryFilter(x => x.ArchivedAt == null);
-                    modelBuilder.Entity<AppUser>().HasQueryFilter(x => x.ArchivedAt == null);
+                    modelBuilder.Entity<AppUser>().HasQueryFilter(x => x.ArchivedAt == null && (_currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId));
+                    modelBuilder.Entity<Role>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<UserRole>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.User.TenantId);
+                    modelBuilder.Entity<RolePermission>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.Role.TenantId);
+                    modelBuilder.Entity<Subscription>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
                     modelBuilder.Entity<Subscription>().Property(s => s.Status).HasConversion<string>().HasMaxLength(32);
                     modelBuilder.Entity<Subscription>().HasOne(s => s.Tenant).WithMany(t => t.Subscriptions).HasForeignKey(s => s.TenantId).OnDelete(DeleteBehavior.Restrict);
                     modelBuilder.Entity<Subscription>().HasOne(s => s.Plan).WithMany(p => p.Subscriptions).HasForeignKey(s => s.PlanId).OnDelete(DeleteBehavior.Restrict);
                     modelBuilder.Entity<Subscription>().HasIndex(s => new { s.TenantId, s.Status });
+                    modelBuilder.Entity<BillingInvoice>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
                     modelBuilder.Entity<BillingInvoice>().Property(i => i.Status).HasConversion<string>().HasMaxLength(32);
                     modelBuilder.Entity<BillingInvoice>().HasOne(i => i.Tenant).WithMany(t => t.BillingInvoices).HasForeignKey(i => i.TenantId).OnDelete(DeleteBehavior.Restrict);
                     modelBuilder.Entity<BillingInvoice>().HasOne(i => i.Subscription).WithMany(s => s.Invoices).HasForeignKey(i => i.SubscriptionId).OnDelete(DeleteBehavior.Restrict);
                     modelBuilder.Entity<BillingInvoice>().HasIndex(i => new { i.TenantId, i.Status });
+                    modelBuilder.Entity<SubscriptionPayment>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
                     modelBuilder.Entity<SubscriptionPayment>().HasOne(p => p.Tenant).WithMany(t => t.SubscriptionPayments).HasForeignKey(p => p.TenantId).OnDelete(DeleteBehavior.Restrict);
                     modelBuilder.Entity<SubscriptionPayment>().HasOne(p => p.BillingInvoice).WithMany(i => i.Payments).HasForeignKey(p => p.BillingInvoiceId).OnDelete(DeleteBehavior.Cascade);
                     modelBuilder.Entity<SupportTicket>().Property(x => x.Priority).HasConversion<string>().HasMaxLength(32);
@@ -162,60 +181,63 @@ namespace HRSystem.API.Data
                     {
                         modelBuilder.Entity(entityType).Property<int>(nameof(ITenantOwned.TenantId));
                     }
-                    modelBuilder.Entity<Company>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<Department>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<Branch>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<Section>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<Team>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<Position>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<Employee>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<EmploymentDetail>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<EmployeeDocument>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<Asset>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<EmployeeAsset>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<Shift>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<EmployeeShift>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<Attendance>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<Payroll>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<LeaveRequest>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<FinalSettlement>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<GratuityReport>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<IncrementHistory>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<EmployeeStatusHistory>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<EmployeeEmploymentHistory>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<AuditLog>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<TenantSetting>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<TenantLeaveType>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<OnboardingProgress>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<CustomFieldDefinition>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<CustomFieldValue>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<Company>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<Department>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<Branch>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<Section>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<Team>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<Position>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<Employee>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<EmploymentDetail>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<EmployeeDocument>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<Asset>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<EmployeeAsset>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<Shift>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<EmployeeShift>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<Attendance>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<Payroll>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<LeaveRequest>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<FinalSettlement>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<GratuityReport>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<IncrementHistory>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<EmployeeStatusHistory>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<EmployeeEmploymentHistory>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<AuditLog>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<TenantSetting>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<TenantLeaveType>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<OnboardingProgress>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<CustomFieldDefinition>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<CustomFieldValue>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
                     modelBuilder.Entity<CustomFieldDefinition>().HasIndex(x => new { x.TenantId, x.Key }).IsUnique();
                     modelBuilder.Entity<CustomFieldValue>().HasIndex(x => new { x.TenantId, x.EmployeeId, x.CustomFieldDefinitionId }).IsUnique();
                     modelBuilder.Entity<FileRecord>().HasKey(x => x.FileId);
                     modelBuilder.Entity<NumberingSequence>().HasIndex(x => new { x.TenantId, x.SequenceKey, x.Year }).IsUnique();
-                    modelBuilder.Entity<FileRecord>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<NumberingSequence>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<ApprovalWorkflow>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<ApprovalRequest>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<ApprovalAction>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<PayrollComponent>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<PayrollComponentSnapshot>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<FileRecord>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<NumberingSequence>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<ApprovalWorkflow>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<ApprovalRequest>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<ApprovalAction>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<PayrollComponent>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<PayrollComponentSnapshot>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
                     modelBuilder.Entity<PayrollComponent>().HasIndex(x => new { x.TenantId, x.Code }).IsUnique();
                     modelBuilder.Entity<PayrollComponentSnapshot>().HasOne(x => x.Payroll).WithMany(x => x.ComponentSnapshots).HasForeignKey(x => x.PayrollId).OnDelete(DeleteBehavior.Restrict);
-                    modelBuilder.Entity<OvertimePolicy>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<OvertimePolicy>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
                     modelBuilder.Entity<OvertimePolicy>().HasIndex(x => new { x.TenantId, x.Name, x.EffectiveFrom });
-                    modelBuilder.Entity<TenantLeaveType>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<TenantLeaveType>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
                     modelBuilder.Entity<TenantLeaveType>().HasIndex(x => new { x.TenantId, x.Name, x.EffectiveFrom });
-                    modelBuilder.Entity<AttendanceConfiguration>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<AttendanceConfiguration>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
                     modelBuilder.Entity<AttendanceConfiguration>().HasIndex(x => x.TenantId).IsUnique();
-                    modelBuilder.Entity<AttendanceImportLog>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<ImportJob>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<IntegrationConnection>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<AttendanceImportLog>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<ImportJob>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<IntegrationConnection>().HasQueryFilter(x => _currentTenant == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
                     modelBuilder.Entity<IntegrationConnection>().HasIndex(x => new { x.TenantId, x.ProviderKey }).IsUnique();
-                    modelBuilder.Entity<SupportArticle>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<SupportTicket>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<SupportTicketMessage>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
-                    modelBuilder.Entity<SupportTicketAttachment>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<NotificationTemplate>().HasQueryFilter(x => _currentTenant == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<Notification>().HasQueryFilter(x => _currentTenant == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<PlatformAuditLog>().HasQueryFilter(x => _currentTenant == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<SupportArticle>().HasQueryFilter(x => _currentTenant == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<SupportTicket>().HasQueryFilter(x => _currentTenant == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<SupportTicketMessage>().HasQueryFilter(x => _currentTenant == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<SupportTicketAttachment>().HasQueryFilter(x => _currentTenant == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
                     modelBuilder.Entity<ApprovalWorkflow>().HasIndex(x => new { x.TenantId, x.Module, x.RequestType, x.Name }).IsUnique();
                     modelBuilder.Entity<ApprovalWorkflow>().HasMany(x => x.Steps).WithOne(x => x.Workflow).HasForeignKey(x => x.ApprovalWorkflowId).OnDelete(DeleteBehavior.Cascade);
                     modelBuilder.Entity<ApprovalRequest>().HasOne(x => x.Workflow).WithMany().HasForeignKey(x => x.ApprovalWorkflowId).OnDelete(DeleteBehavior.Restrict);

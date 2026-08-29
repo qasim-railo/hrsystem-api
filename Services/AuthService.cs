@@ -26,8 +26,11 @@ public sealed class AuthService
 
     public async Task<AppUser?> FindUserAsync(AppDbContext db, string username)
     {
-        return await db.Users.Include(u => u.UserRoles).ThenInclude(ur => ur.Role)
-            .ThenInclude(r => r.RolePermissions).ThenInclude(rp => rp.Permission)
+        return await db.Users.IgnoreQueryFilters()
+            .Include(u => u.UserRoles)
+            .ThenInclude(ur => ur.Role)
+            .ThenInclude(r => r.RolePermissions)
+            .ThenInclude(rp => rp.Permission)
             .SingleOrDefaultAsync(u => u.Username == username && u.IsActive);
     }
 }
