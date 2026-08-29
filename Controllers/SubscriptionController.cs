@@ -90,6 +90,7 @@ public class SubscriptionController : ControllerBase
     {
         subscription.UpdatedAt = DateTime.UtcNow;
         subscription.Tenant.Status = subscription.Status.ToString();
+        subscription.Tenant.LifecycleStatus = subscription.Status.ToString();
         subscription.Tenant.BillingStatus = subscription.Status.ToString();
         subscription.Tenant.PlanId = subscription.PlanId;
         subscription.Tenant.PlanName = (await _db.Plans.FindAsync(subscription.PlanId))?.Name ?? subscription.Tenant.PlanName;
@@ -108,7 +109,8 @@ public class SubscriptionController : ControllerBase
             SubscriptionId = s.SubscriptionId, TenantId = s.TenantId, TenantName = s.Tenant.Name,
             PlanId = s.PlanId, PlanCode = s.Plan.Code, PlanName = s.Plan.Name, Status = s.Status,
             StartDate = s.StartDate, RenewalDate = s.RenewalDate, TrialStartDate = s.TrialStartDate,
-            TrialEndDate = s.TrialEndDate, BillingCycle = s.BillingCycle, Notes = s.Notes
+            TrialEndDate = s.TrialEndDate, TrialDaysRemaining = SubscriptionDto.CalculateTrialDaysRemaining(s.TrialEndDate, s.Status),
+            BillingCycle = s.BillingCycle, Notes = s.Notes
         });
 }
 
@@ -131,7 +133,8 @@ public class TenantSubscriptionController : ControllerBase
                 SubscriptionId = s.SubscriptionId, TenantId = s.TenantId, TenantName = s.Tenant.Name,
                 PlanId = s.PlanId, PlanCode = s.Plan.Code, PlanName = s.Plan.Name, Status = s.Status,
                 StartDate = s.StartDate, RenewalDate = s.RenewalDate, TrialStartDate = s.TrialStartDate,
-                TrialEndDate = s.TrialEndDate, BillingCycle = s.BillingCycle, Notes = s.Notes
+                TrialEndDate = s.TrialEndDate, TrialDaysRemaining = SubscriptionDto.CalculateTrialDaysRemaining(s.TrialEndDate, s.Status),
+                BillingCycle = s.BillingCycle, Notes = s.Notes
             }).SingleOrDefaultAsync();
         return result == null ? NotFound() : Ok(result);
     }

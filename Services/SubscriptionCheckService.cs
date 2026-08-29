@@ -42,6 +42,7 @@ public sealed class SubscriptionCheckService : ISubscriptionCheckService
         {
             Allowed = allowed,
             Status = effectiveStatus,
+            TrialDaysRemaining = SubscriptionDto.CalculateTrialDaysRemaining(subscription.TrialEndDate, subscription.Status),
             UpgradeRequired = false,
             Reason = allowed ? "Subscription is active." : $"Subscription is {effectiveStatus}."
         };
@@ -70,6 +71,7 @@ public sealed class SubscriptionCheckService : ISubscriptionCheckService
             {
                 Allowed = false,
                 Status = effectiveStatus,
+                TrialDaysRemaining = SubscriptionDto.CalculateTrialDaysRemaining(subscription.TrialEndDate, subscription.Status),
                 FeatureCode = code,
                 CurrentPlanCode = subscription.Plan?.Code ?? string.Empty,
                 CurrentPlanName = subscription.Plan?.Name ?? string.Empty,
@@ -90,6 +92,7 @@ public sealed class SubscriptionCheckService : ISubscriptionCheckService
             {
                 Allowed = false,
                 Status = effectiveStatus,
+                TrialDaysRemaining = SubscriptionDto.CalculateTrialDaysRemaining(subscription.TrialEndDate, subscription.Status),
                 UpgradeRequired = true,
                 FeatureCode = normalizedCode,
                 CurrentPlanCode = subscription.Plan?.Code ?? string.Empty,
@@ -103,6 +106,7 @@ public sealed class SubscriptionCheckService : ISubscriptionCheckService
         {
             Allowed = true,
             Status = effectiveStatus,
+            TrialDaysRemaining = SubscriptionDto.CalculateTrialDaysRemaining(subscription.TrialEndDate, subscription.Status),
             UpgradeRequired = false,
             FeatureCode = normalizedCode,
             CurrentPlanCode = subscription.Plan?.Code ?? string.Empty,

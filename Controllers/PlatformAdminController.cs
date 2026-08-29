@@ -37,6 +37,7 @@ public class PlatformAdminController : ControllerBase
                 PlanName = t.PlanName,
                 TrialStartDate = t.TrialStartDate,
                 TrialEndDate = t.TrialEndDate,
+                TrialDaysRemaining = PlatformTenantDto.CalculateTrialDaysRemaining(t.TrialEndDate, t.Status, t.LifecycleStatus),
                 BillingStatus = t.BillingStatus,
                 StorageUsedBytes = _db.FileRecords.Where(f => f.TenantId == t.TenantId && f.IsCurrent && !f.IsDeleted && f.Status == "Active").Sum(f => (long?)f.Size) ?? 0,
                 StorageLimitBytes = t.Plan.MaxStorageBytes,
@@ -91,6 +92,9 @@ public class PlatformAdminController : ControllerBase
 
         tenant.Status = status;
         tenant.LifecycleStatus = status;
+        tenant.BillingStatus = status;
+        await UpdateSubscriptionFromTenantLifecycleAsync(tenant, status);
+
         _db.PlatformAuditLogs.Add(new PlatformAuditLog
         {
             TenantId = id,
@@ -102,6 +106,43 @@ public class PlatformAdminController : ControllerBase
         });
         await _db.SaveChangesAsync();
         return NoContent();
+    }
+
+    private async Task UpdateSubscriptionFromTenantLifecycleAsync(Tenant tenant, string status)
+    {
+        var subscription = await _db.Subscriptions.SingleOrDefaultAsync(s => s.TenantId == tenant.TenantId);
+        if (subscription == null)
+            return;
+
+        switch (status)
+        {
+            case "Trial":
+                subscription.Status = SubscriptionStatus.Trial;
+                subscription.TrialStartDate ??= tenant.TrialStartDate ?? DateTime.UtcNow;
+                subscription.TrialEndDate ??= tenant.TrialEndDate ?? DateTime.UtcNow.AddDays(14);
+                subscription.StartDate = subscription.StartDate == default ? (tenant.TrialStartDate ?? DateTime.UtcNow) : subscription.StartDate;
+                break;
+            case "Active":
+                subscription.Status = SubscriptionStatus.Active;
+                subscription.TrialStartDate ??= tenant.TrialStartDate ?? DateTime.UtcNow;
+                subscription.TrialEndDate ??= tenant.TrialEndDate ?? DateTime.UtcNow.AddDays(14);
+                subscription.StartDate = subscription.StartDate == default ? (tenant.TrialStartDate ?? DateTime.UtcNow) : subscription.StartDate;
+                subscription.RenewalDate ??= subscription.TrialEndDate ?? DateTime.UtcNow.AddMonths(1);
+                break;
+            case "Suspended":
+                subscription.Status = SubscriptionStatus.Suspended;
+                break;
+            case "Archived":
+                subscription.Status = SubscriptionStatus.Cancelled;
+                subscription.CancelledAt ??= DateTime.UtcNow;
+                break;
+            case "Resume":
+            case "Resumed":
+                subscription.Status = SubscriptionStatus.Active;
+                break;
+        }
+
+        subscription.UpdatedAt = DateTime.UtcNow;
     }
 
     private IQueryable<PlatformTenantDto> BuildTenantQuery()
@@ -116,6 +157,7 @@ public class PlatformAdminController : ControllerBase
             PlanName = t.PlanName,
             TrialStartDate = t.TrialStartDate,
             TrialEndDate = t.TrialEndDate,
+            TrialDaysRemaining = PlatformTenantDto.CalculateTrialDaysRemaining(t.TrialEndDate, t.Status, t.LifecycleStatus),
             BillingStatus = t.BillingStatus,
             StorageUsedBytes = _db.FileRecords.Where(f => f.TenantId == t.TenantId && f.IsCurrent && !f.IsDeleted && f.Status == "Active").Sum(f => (long?)f.Size) ?? 0,
             StorageLimitBytes = t.Plan.MaxStorageBytes,
