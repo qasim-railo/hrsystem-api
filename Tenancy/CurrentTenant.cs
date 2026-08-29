@@ -11,4 +11,9 @@ public sealed class CurrentTenant : ICurrentTenant
 
         TenantId = tenantId;
     }
+
+    public void Clear()
+    {
+        TenantId = null;
+    }
 }

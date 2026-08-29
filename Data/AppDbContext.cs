@@ -19,6 +19,8 @@ namespace HRSystem.API.Data
         public DbSet<Plan> Plans { get; set; }
         public DbSet<PlanFeature> PlanFeatures { get; set; }
         public DbSet<Subscription> Subscriptions { get; set; }
+        public DbSet<BillingInvoice> BillingInvoices { get; set; }
+        public DbSet<SubscriptionPayment> SubscriptionPayments { get; set; }
         public DbSet<Company> Companies { get; set; }
         public DbSet<Branch> Branches { get; set; }
         public DbSet<Section> Sections { get; set; }
@@ -114,6 +116,12 @@ namespace HRSystem.API.Data
                     modelBuilder.Entity<Subscription>().HasOne(s => s.Tenant).WithMany(t => t.Subscriptions).HasForeignKey(s => s.TenantId).OnDelete(DeleteBehavior.Restrict);
                     modelBuilder.Entity<Subscription>().HasOne(s => s.Plan).WithMany(p => p.Subscriptions).HasForeignKey(s => s.PlanId).OnDelete(DeleteBehavior.Restrict);
                     modelBuilder.Entity<Subscription>().HasIndex(s => new { s.TenantId, s.Status });
+                    modelBuilder.Entity<BillingInvoice>().Property(i => i.Status).HasConversion<string>().HasMaxLength(32);
+                    modelBuilder.Entity<BillingInvoice>().HasOne(i => i.Tenant).WithMany(t => t.BillingInvoices).HasForeignKey(i => i.TenantId).OnDelete(DeleteBehavior.Restrict);
+                    modelBuilder.Entity<BillingInvoice>().HasOne(i => i.Subscription).WithMany(s => s.Invoices).HasForeignKey(i => i.SubscriptionId).OnDelete(DeleteBehavior.Restrict);
+                    modelBuilder.Entity<BillingInvoice>().HasIndex(i => new { i.TenantId, i.Status });
+                    modelBuilder.Entity<SubscriptionPayment>().HasOne(p => p.Tenant).WithMany(t => t.SubscriptionPayments).HasForeignKey(p => p.TenantId).OnDelete(DeleteBehavior.Restrict);
+                    modelBuilder.Entity<SubscriptionPayment>().HasOne(p => p.BillingInvoice).WithMany(i => i.Payments).HasForeignKey(p => p.BillingInvoiceId).OnDelete(DeleteBehavior.Cascade);
                     modelBuilder.Entity<Plan>().HasData(
                         new Plan { PlanId = 1, Code = "ESSENTIAL", Name = "PeopleOS Essential", MaxEmployees = 50, MaxUsers = 10, MaxBranches = 1, MaxStorageBytes = 5L * 1024 * 1024 * 1024 },
                         new Plan { PlanId = 2, Code = "PROFESSIONAL", Name = "PeopleOS Professional", MaxEmployees = 250, MaxUsers = 50, MaxBranches = 10, MaxStorageBytes = 25L * 1024 * 1024 * 1024 });

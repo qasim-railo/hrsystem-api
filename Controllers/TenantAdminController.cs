@@ -226,6 +226,37 @@ public class TenantAdminController : ControllerBase
         });
     }
 
+    [HttpGet("setup-wizard")]
+    public async Task<ActionResult<TenantSetupProgressDto>> GetSetupWizard()
+    {
+        if (_tenant.TenantId is not int id) return Forbid();
+        var progress = await _db.OnboardingProgress.AsNoTracking().SingleOrDefaultAsync(x => x.TenantId == id);
+        return Ok(BuildSetupProgress(progress, id));
+    }
+
+    [HttpPut("setup-wizard")]
+    public async Task<ActionResult<TenantSetupProgressDto>> UpdateSetupWizard(TenantSetupProgressUpdateDto dto)
+    {
+        if (_tenant.TenantId is not int id) return Forbid();
+        var maxStep = TenantSetupCatalog.StepDefinitions.Count;
+        if (dto.CompletedStep < 0 || dto.CompletedStep > maxStep)
+            return BadRequest("CompletedStep must be between 0 and the total setup steps.");
+
+        var progress = await _db.OnboardingProgress.SingleOrDefaultAsync(x => x.TenantId == id);
+        if (progress is null)
+        {
+            progress = new OnboardingProgress { TenantId = id, Status = "Started", CompletedStep = 0, UpdatedAt = DateTime.UtcNow };
+            _db.OnboardingProgress.Add(progress);
+        }
+
+        progress.CompletedStep = dto.CompletedStep;
+        progress.Status = dto.CompletedStep >= maxStep ? "Completed" : "InProgress";
+        progress.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        return Ok(BuildSetupProgress(progress, id));
+    }
+
     [HttpGet("dashboard")]
     public async Task<IActionResult> Dashboard()
     {
@@ -247,6 +278,32 @@ public class TenantAdminController : ControllerBase
         });
     }
 
+    private static TenantSetupProgressDto BuildSetupProgress(OnboardingProgress? progress, int tenantId)
+    {
+        var steps = TenantSetupCatalog.StepDefinitions.Select((step, index) => new TenantSetupStepDto
+        {
+           StepNumber = index + 1,
+           Title = step.Title,
+           Description = step.Description,
+           IsCompleted = (progress?.CompletedStep ?? 0) >= index + 1,
+           IsSkippable = step.IsSkippable
+        }).ToList();
+
+        var completedStep = Math.Clamp(progress?.CompletedStep ?? 0, 0, steps.Count);
+        var totalSteps = steps.Count;
+        var percentComplete = totalSteps == 0 ? 0 : (int)Math.Round((double)completedStep / totalSteps * 100);
+
+        return new TenantSetupProgressDto
+        {
+           CompletedStep = completedStep,
+           TotalSteps = totalSteps,
+           PercentComplete = percentComplete,
+           Status = completedStep >= totalSteps ? "Completed" : (completedStep > 0 ? "InProgress" : "Started"),
+           UpdatedAt = progress?.UpdatedAt ?? DateTime.UtcNow,
+           Steps = steps
+        };
+    }
+
     private async Task<object> BuildStorageUsageAsync(int tenantId)
     {
         var tenant = await _db.Tenants.Include(x => x.Plan).AsNoTracking().SingleAsync(x => x.TenantId == tenantId);
@@ -254,6 +311,21 @@ public class TenantAdminController : ControllerBase
            .SumAsync(x => (long?)x.Size) ?? 0;
         return new { storageUsedBytes = used, storageLimitBytes = tenant.Plan.MaxStorageBytes,
            remainingBytes = Math.Max(0, tenant.Plan.MaxStorageBytes - used) };
+    }
+
+    private static class TenantSetupCatalog
+    {
+        public static readonly List<(string Title, string Description, bool IsSkippable)> StepDefinitions = new()
+        {
+           ("Company Profile", "Confirm your legal entity, trade name, country, and contact details.", false),
+           ("Branches", "Add your operating branches and locations.", true),
+           ("Departments", "Create each department and reporting structure.", true),
+           ("Leave Policies", "Set standard leave allowances and approval requirements.", false),
+           ("Working Hours", "Configure default hours, shifts, and attendance rules.", false),
+           ("Payroll Settings", "Define payroll salary components and default outputs.", false),
+           ("Import Employees", "Upload your employee roster and validate your data.", true),
+           ("Invite Users", "Invite HR admins and managers to finish onboarding.", true)
+        };
     }
 
     private static bool IsValidValue(TenantSettingDefinition definition, string value)

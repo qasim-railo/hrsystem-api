@@ -32,4 +32,6 @@ public class Tenant
     public long StorageUsedBytes { get; set; }
     public string BillingStatus { get; set; } = "Not configured";
     public ICollection<Subscription> Subscriptions { get; set; } = new List<Subscription>();
+    public ICollection<BillingInvoice> BillingInvoices { get; set; } = new List<BillingInvoice>();
+    public ICollection<SubscriptionPayment> SubscriptionPayments { get; set; } = new List<SubscriptionPayment>();
 }

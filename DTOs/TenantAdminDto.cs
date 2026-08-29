@@ -27,3 +27,27 @@ public class TenantBrandingDto
     public string? ReportHeader { get; set; }
     public string? EmailFooter { get; set; }
 }
+
+public class TenantSetupStepDto
+{
+    public int StepNumber { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public bool IsCompleted { get; set; }
+    public bool IsSkippable { get; set; }
+}
+
+public class TenantSetupProgressDto
+{
+    public int CompletedStep { get; set; }
+    public int TotalSteps { get; set; }
+    public int PercentComplete { get; set; }
+    public string Status { get; set; } = "Started";
+    public DateTime UpdatedAt { get; set; }
+    public List<TenantSetupStepDto> Steps { get; set; } = new();
+}
+
+public class TenantSetupProgressUpdateDto
+{
+    public int CompletedStep { get; set; }
+}

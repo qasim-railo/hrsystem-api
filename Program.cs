@@ -62,6 +62,7 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<ISubscriptionCheckService, SubscriptionCheckService>();
+builder.Services.AddScoped<BillingService>();
 
 
 

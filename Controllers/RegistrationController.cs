@@ -153,12 +153,13 @@ public class RegistrationController : ControllerBase
     [Authorize]
     public async Task<ActionResult<OnboardingProgressDto>> UpdateProgress([FromBody] OnboardingProgressDto dto)
     {
-        if (dto.CompletedStep < 0 || dto.CompletedStep > 6)
-            return BadRequest("CompletedStep must be between 0 and 6.");
+        const int maxWizardStep = 8;
+        if (dto.CompletedStep < 0 || dto.CompletedStep > maxWizardStep)
+            return BadRequest("CompletedStep must be between 0 and 8.");
         var progress = await _db.OnboardingProgress.SingleOrDefaultAsync();
         if (progress == null) return NotFound();
         progress.CompletedStep = dto.CompletedStep;
-        progress.Status = dto.CompletedStep >= 6 ? "Completed" : "InProgress";
+        progress.Status = dto.CompletedStep >= maxWizardStep ? "Completed" : "InProgress";
         progress.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
         return Ok(new OnboardingProgressDto { Status = progress.Status, CompletedStep = progress.CompletedStep, UpdatedAt = progress.UpdatedAt });
