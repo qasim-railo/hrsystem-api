@@ -139,9 +139,10 @@ namespace HRSystem.API.Services
             }).ToListAsync();
         }
 
-        Task<List<LoanBalanceReportDto>> IReportService.GetLoanReportAsync(int? companyId, int? employeeId)
+        public async Task<List<LoanBalanceReportDto>> GetLoanReportAsync(int? companyId, int? employeeId)
         {
-            throw new NotImplementedException();
+            await Task.CompletedTask;
+            return new List<LoanBalanceReportDto>();
         }
 
         //public async Task<List<LoanBalanceReportDto>> GetLoanReportAsync(int? companyId, int? employeeId)
