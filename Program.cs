@@ -313,6 +313,8 @@ using (var scope = app.Services.CreateScope())
     EnsureUserRole(admin, adminRole.Id);
     EnsureUserRole(admin, companyAdministratorRole.Id);
     db.SaveChanges();
+
+    await DevelopmentSeedData.SeedAsync(db, auth);
 }
 app.UseStaticFiles();
 
