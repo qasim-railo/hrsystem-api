@@ -92,10 +92,13 @@ namespace HRSystem.API.Data
 
                         private void ApplyTenantBoundary()
                         {
+                            if (_currentTenant?.IsPlatformAdmin == true)
+                                return;
+
                             foreach (var entry in ChangeTracker.Entries<ITenantOwned>())
                             {
                                 if (_currentTenant?.TenantId is not int tenantId)
-                                    throw new InvalidOperationException("A current tenant is required for tenant-owned data.");
+                                    throw new InvalidOperationException("A resolved tenant is required for tenant-owned data.");
 
                                 if (entry.State == EntityState.Added)
                                     entry.Entity.TenantId = tenantId;
