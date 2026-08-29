@@ -17,3 +17,13 @@ public class TenantSettingDto
 {
     public string? Value { get; set; }
 }
+
+public class TenantBrandingDto
+{
+    public string? DisplayName { get; set; }
+    public string? PrimaryColor { get; set; }
+    public string? CompanyLogoUrl { get; set; }
+    public string? PayslipLogoUrl { get; set; }
+    public string? ReportHeader { get; set; }
+    public string? EmailFooter { get; set; }
+}

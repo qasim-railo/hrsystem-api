@@ -15,6 +15,12 @@ public class Tenant
     public string TimeZoneId { get; set; } = "Asia/Qatar";
     public string DateFormat { get; set; } = "dd/MM/yyyy";
     public string NumberFormat { get; set; } = "en-QA";
+    public string DisplayName { get; set; } = "";
+    public string PrimaryColor { get; set; } = "#1f5c9c";
+    public string CompanyLogoUrl { get; set; } = "";
+    public string PayslipLogoUrl { get; set; } = "";
+    public string ReportHeader { get; set; } = "";
+    public string EmailFooter { get; set; } = "";
     public string DefaultLanguage { get; set; } = "en";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public string LifecycleStatus { get; set; } = "Active";
