@@ -73,6 +73,10 @@ namespace HRSystem.API.Data
                         public DbSet<RolePermission> RolePermissions { get; set; }
                         public DbSet<NotificationTemplate> NotificationTemplates { get; set; }
                         public DbSet<Notification> Notifications { get; set; }
+                        public DbSet<SupportArticle> SupportArticles { get; set; }
+                        public DbSet<SupportTicket> SupportTickets { get; set; }
+                        public DbSet<SupportTicketMessage> SupportTicketMessages { get; set; }
+                        public DbSet<SupportTicketAttachment> SupportTicketAttachments { get; set; }
 
                         public override int SaveChanges()
                         {
@@ -122,6 +126,15 @@ namespace HRSystem.API.Data
                     modelBuilder.Entity<BillingInvoice>().HasIndex(i => new { i.TenantId, i.Status });
                     modelBuilder.Entity<SubscriptionPayment>().HasOne(p => p.Tenant).WithMany(t => t.SubscriptionPayments).HasForeignKey(p => p.TenantId).OnDelete(DeleteBehavior.Restrict);
                     modelBuilder.Entity<SubscriptionPayment>().HasOne(p => p.BillingInvoice).WithMany(i => i.Payments).HasForeignKey(p => p.BillingInvoiceId).OnDelete(DeleteBehavior.Cascade);
+                    modelBuilder.Entity<SupportTicket>().Property(x => x.Priority).HasConversion<string>().HasMaxLength(32);
+                    modelBuilder.Entity<SupportTicket>().Property(x => x.Status).HasConversion<string>().HasMaxLength(32);
+                    modelBuilder.Entity<SupportTicket>().HasMany(x => x.Messages).WithOne(x => x.Ticket).HasForeignKey(x => x.TicketId).OnDelete(DeleteBehavior.Cascade);
+                    modelBuilder.Entity<SupportTicket>().HasMany(x => x.Attachments).WithOne(x => x.Ticket).HasForeignKey(x => x.TicketId).OnDelete(DeleteBehavior.Restrict);
+                    modelBuilder.Entity<SupportTicketMessage>().HasMany(x => x.Attachments).WithOne(x => x.Message).HasForeignKey(x => x.MessageId).OnDelete(DeleteBehavior.SetNull);
+                    modelBuilder.Entity<SupportArticle>().HasIndex(x => new { x.TenantId, x.Category, x.Title });
+                    modelBuilder.Entity<SupportTicket>().HasIndex(x => new { x.TenantId, x.Status, x.CreatedAt });
+                    modelBuilder.Entity<SupportTicketMessage>().HasIndex(x => new { x.TenantId, x.TicketId, x.CreatedAt });
+                    modelBuilder.Entity<SupportTicketAttachment>().HasIndex(x => new { x.TenantId, x.TicketId, x.FileId }).IsUnique();
                     modelBuilder.Entity<Plan>().HasData(
                         new Plan { PlanId = 1, Code = "ESSENTIAL", Name = "PeopleOS Essential", MaxEmployees = 50, MaxUsers = 10, MaxBranches = 1, MaxStorageBytes = 5L * 1024 * 1024 * 1024 },
                         new Plan { PlanId = 2, Code = "PROFESSIONAL", Name = "PeopleOS Professional", MaxEmployees = 250, MaxUsers = 50, MaxBranches = 10, MaxStorageBytes = 25L * 1024 * 1024 * 1024 });
@@ -141,7 +154,7 @@ namespace HRSystem.API.Data
                         typeof(EmployeeStatusHistory), typeof(AuditLog), typeof(Branch), typeof(Section), typeof(Team), typeof(Position)
                         , typeof(EmployeeEmploymentHistory), typeof(TenantSetting), typeof(TenantLeaveType), typeof(OnboardingProgress),
                         typeof(CustomFieldDefinition), typeof(CustomFieldValue), typeof(FileRecord)
-                        ,                                                 typeof(NumberingSequence), typeof(ApprovalWorkflow), typeof(ApprovalRequest), typeof(ApprovalAction), typeof(PayrollComponent), typeof(PayrollComponentSnapshot), typeof(OvertimePolicy), typeof(AttendanceConfiguration), typeof(AttendanceImportLog), typeof(NotificationTemplate), typeof(Notification), typeof(IntegrationConnection)
+                        ,                                                 typeof(NumberingSequence), typeof(ApprovalWorkflow), typeof(ApprovalRequest), typeof(ApprovalAction), typeof(PayrollComponent), typeof(PayrollComponentSnapshot), typeof(OvertimePolicy), typeof(AttendanceConfiguration), typeof(AttendanceImportLog), typeof(NotificationTemplate), typeof(Notification), typeof(IntegrationConnection), typeof(SupportArticle), typeof(SupportTicket), typeof(SupportTicketMessage), typeof(SupportTicketAttachment)
                     })
                     {
                         modelBuilder.Entity(entityType).Property<int>(nameof(ITenantOwned.TenantId));
@@ -196,6 +209,10 @@ namespace HRSystem.API.Data
                     modelBuilder.Entity<ImportJob>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
                     modelBuilder.Entity<IntegrationConnection>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
                     modelBuilder.Entity<IntegrationConnection>().HasIndex(x => new { x.TenantId, x.ProviderKey }).IsUnique();
+                    modelBuilder.Entity<SupportArticle>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<SupportTicket>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<SupportTicketMessage>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
+                    modelBuilder.Entity<SupportTicketAttachment>().HasQueryFilter(x => _currentTenant != null && _currentTenant.TenantId == x.TenantId);
                     modelBuilder.Entity<ApprovalWorkflow>().HasIndex(x => new { x.TenantId, x.Module, x.RequestType, x.Name }).IsUnique();
                     modelBuilder.Entity<ApprovalWorkflow>().HasMany(x => x.Steps).WithOne(x => x.Workflow).HasForeignKey(x => x.ApprovalWorkflowId).OnDelete(DeleteBehavior.Cascade);
                     modelBuilder.Entity<ApprovalRequest>().HasOne(x => x.Workflow).WithMany().HasForeignKey(x => x.ApprovalWorkflowId).OnDelete(DeleteBehavior.Restrict);
