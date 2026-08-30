@@ -24,13 +24,14 @@ public sealed class AuthService
         return CryptographicOperations.FixedTimeEquals(actual, expected);
     }
 
-    public async Task<AppUser?> FindUserAsync(AppDbContext db, string username)
+    public async Task<AppUser?> FindUserByEmailAsync(AppDbContext db, string email)
     {
+        var normalizedEmail = email.Trim().ToUpperInvariant();
         return await db.Users.IgnoreQueryFilters()
             .Include(u => u.UserRoles)
             .ThenInclude(ur => ur.Role)
             .ThenInclude(r => r.RolePermissions)
             .ThenInclude(rp => rp.Permission)
-            .SingleOrDefaultAsync(u => u.Username == username && u.IsActive);
+            .SingleOrDefaultAsync(u => u.Username.ToUpper() == normalizedEmail && u.IsActive);
     }
 }

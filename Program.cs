@@ -249,12 +249,12 @@ using (var scope = app.Services.CreateScope())
     var platformPermission = db.Permissions.Single(p => p.Name == "Platform.Tenants");
     EnsureRolePermission(platformRole, platformPermission.Id);
     var existingSuperAdmins = db.Users.IgnoreQueryFilters()
-        .Where(u => u.Username == "superadmin")
+        .Where(u => u.Username == "superadmin" || u.Username == "qasim.railo@gmail.com")
         .OrderByDescending(u => u.Id)
         .ToList();
     var superAdmin = existingSuperAdmins.FirstOrDefault(u => u.TenantId == tenant.TenantId)
         ?? existingSuperAdmins.FirstOrDefault()
-        ?? new AppUser { Username = "superadmin", PasswordHash = auth.HashPassword(DevelopmentDefaultPassword), TenantId = tenant.TenantId };
+        ?? new AppUser { Username = "qasim.railo@gmail.com", PasswordHash = auth.HashPassword(DevelopmentDefaultPassword), TenantId = tenant.TenantId };
     if (superAdmin.Id == 0)
     {
         db.Users.Add(superAdmin);
@@ -263,6 +263,7 @@ using (var scope = app.Services.CreateScope())
     else
     {
         superAdmin.TenantId = tenant.TenantId;
+        superAdmin.Username = "qasim.railo@gmail.com";
         superAdmin.PasswordHash = auth.HashPassword(DevelopmentDefaultPassword);
     }
     foreach (var duplicate in existingSuperAdmins.Where(u => u.Id != superAdmin.Id).ToList())
@@ -292,12 +293,12 @@ using (var scope = app.Services.CreateScope())
         EnsureRolePermission(companyAdministratorRole, permission.Id);
     db.SaveChanges();
     var existingAdmins = db.Users.IgnoreQueryFilters()
-        .Where(u => u.Username == "admin")
+        .Where(u => u.Username == "admin" || u.Username == "railo.solutions@gmail.com")
         .OrderByDescending(u => u.Id)
         .ToList();
     var admin = existingAdmins.FirstOrDefault(u => u.TenantId == tenant.TenantId)
         ?? existingAdmins.FirstOrDefault()
-        ?? new AppUser { Username = "admin", PasswordHash = auth.HashPassword(DevelopmentDefaultPassword), TenantId = tenant.TenantId };
+        ?? new AppUser { Username = "railo.solutions@gmail.com", PasswordHash = auth.HashPassword(DevelopmentDefaultPassword), TenantId = tenant.TenantId };
     if (admin.Id == 0)
     {
         db.Users.Add(admin);
@@ -306,6 +307,7 @@ using (var scope = app.Services.CreateScope())
     else
     {
         admin.TenantId = tenant.TenantId;
+        admin.Username = "railo.solutions@gmail.com";
         admin.PasswordHash = auth.HashPassword(DevelopmentDefaultPassword);
     }
     foreach (var duplicate in existingAdmins.Where(u => u.Id != admin.Id).ToList())

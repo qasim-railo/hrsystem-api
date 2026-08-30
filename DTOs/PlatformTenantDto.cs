@@ -46,3 +46,16 @@ public class PlatformStatisticsDto
     public int TotalEmployees { get; set; }
     public long TotalStorageUsedBytes { get; set; }
 }
+
+public class PlatformAuditLogDto
+{
+    public int Id { get; set; }
+    public int TenantId { get; set; }
+    public string TenantName { get; set; } = string.Empty;
+    public string Action { get; set; } = string.Empty;
+    public string Entity { get; set; } = string.Empty;
+    public string EntityId { get; set; } = string.Empty;
+    public string UserId { get; set; } = string.Empty;
+    public string Details { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+}

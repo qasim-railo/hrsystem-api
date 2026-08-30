@@ -35,7 +35,7 @@ public class AccessController : ControllerBase
             .Select(u => new UserAccessDto
             {
                 Id = u.Id,
-                Username = u.Username,
+                Email = u.Username,
                 IsActive = u.IsActive,
                 Roles = u.UserRoles.Where(ur => !ur.Role.RolePermissions.Any(rp => rp.Permission.Name == "Platform.Tenants")).Select(ur => ur.Role.Name).ToList(),
                 Permissions = u.UserRoles.SelectMany(ur => ur.Role.RolePermissions).Where(rp => rp.Permission.Name != "Platform.Tenants").Select(rp => rp.Permission.Name).Distinct().ToList()
@@ -98,15 +98,17 @@ public class AccessController : ControllerBase
     public async Task<IActionResult> CreateUser(CreateUserDto dto)
     {
         if (_tenant.TenantId is not int tenantId) return Forbid();
-        if (string.IsNullOrWhiteSpace(dto.Username) || string.IsNullOrWhiteSpace(dto.Password)) return BadRequest("Username and password are required.");
-        if (await _db.Users.IgnoreQueryFilters().AnyAsync(u => u.Username == dto.Username)) return Conflict("Username already exists.");
+        if (string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.Password)) return BadRequest("Email and password are required.");
+        var email = dto.Email.Trim().ToLowerInvariant();
+        if (!System.Net.Mail.MailAddress.TryCreate(email, out _)) return BadRequest("A valid email address is required.");
+        if (await _db.Users.IgnoreQueryFilters().AnyAsync(u => u.Username.ToLower() == email)) return Conflict("Email already exists.");
         var roles = await _db.Roles.Where(r => r.TenantId == tenantId && dto.Roles.Contains(r.Name) && !r.RolePermissions.Any(rp => rp.Permission.Name == "Platform.Tenants")).ToListAsync();
         if (roles.Count != dto.Roles.Distinct().Count()) return BadRequest("One or more roles do not exist.");
-        var user = new AppUser { TenantId = tenantId, Username = dto.Username.Trim(), PasswordHash = _auth.HashPassword(dto.Password), IsActive = dto.IsActive };
+        var user = new AppUser { TenantId = tenantId, Username = email, PasswordHash = _auth.HashPassword(dto.Password), IsActive = dto.IsActive };
         user.UserRoles = roles.Select(r => new UserRole { RoleId = r.Id }).ToList();
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
-        return Created($"api/access/users/{user.Id}", new UserAccessDto { Id = user.Id, Username = user.Username, IsActive = user.IsActive, Roles = roles.Select(r => r.Name).ToList(), Permissions = new() });
+        return Created($"api/access/users/{user.Id}", new UserAccessDto { Id = user.Id, Email = user.Username, IsActive = user.IsActive, Roles = roles.Select(r => r.Name).ToList(), Permissions = new() });
     }
 
     [HttpPut("users/{id}")]
@@ -129,20 +131,22 @@ public class AccessController : ControllerBase
     public async Task<IActionResult> InviteUser(InviteUserDto dto)
     {
         if (_tenant.TenantId is not int tenantId) return Forbid();
-        if (string.IsNullOrWhiteSpace(dto.Username)) return BadRequest("Username is required.");
-        if (await _db.Users.IgnoreQueryFilters().AnyAsync(u => u.Username == dto.Username.Trim()))
-            return Conflict("Username already exists.");
+        if (string.IsNullOrWhiteSpace(dto.Email)) return BadRequest("Email is required.");
+        var email = dto.Email.Trim().ToLowerInvariant();
+        if (!System.Net.Mail.MailAddress.TryCreate(email, out _)) return BadRequest("A valid email address is required.");
+        if (await _db.Users.IgnoreQueryFilters().AnyAsync(u => u.Username.ToLower() == email))
+            return Conflict("Email already exists.");
         var roles = await _db.Roles.Where(r => r.TenantId == tenantId && dto.Roles.Contains(r.Name)
             && !r.RolePermissions.Any(rp => rp.Permission.Name == "Platform.Tenants")).ToListAsync();
         if (roles.Count != dto.Roles.Distinct().Count()) return BadRequest("One or more roles do not exist.");
         var temporaryPassword = string.IsNullOrWhiteSpace(dto.TemporaryPassword)
             ? Convert.ToBase64String(RandomNumberGenerator.GetBytes(12)) : dto.TemporaryPassword;
-        var user = new AppUser { TenantId = tenantId, Username = dto.Username.Trim(),
+        var user = new AppUser { TenantId = tenantId, Username = email,
             PasswordHash = _auth.HashPassword(temporaryPassword), IsActive = dto.IsActive,
             UserRoles = roles.Select(r => new UserRole { RoleId = r.Id }).ToList() };
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
-        return Created($"api/access/users/{user.Id}", new { user.Id, user.Username, temporaryPassword });
+        return Created($"api/access/users/{user.Id}", new { user.Id, Email = user.Username, temporaryPassword });
     }
 
     [HttpPost("users/{id}/disable")]

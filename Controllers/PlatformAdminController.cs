@@ -73,6 +73,37 @@ public class PlatformAdminController : ControllerBase
         });
     }
 
+    [HttpGet("audit-logs")]
+    public async Task<ActionResult<IEnumerable<PlatformAuditLogDto>>> GetAuditLogs([FromQuery] int limit = 100)
+    {
+        var safeLimit = Math.Clamp(limit, 1, 500);
+        var logs = await _db.PlatformAuditLogs.AsNoTracking()
+            .OrderByDescending(log => log.CreatedAt)
+            .Take(safeLimit)
+            .GroupJoin(
+                _db.Tenants.AsNoTracking(),
+                log => log.TenantId,
+                tenant => tenant.TenantId,
+                (log, tenants) => new { log, tenants })
+            .SelectMany(
+                item => item.tenants.DefaultIfEmpty(),
+                (item, tenant) => new PlatformAuditLogDto
+                {
+                    Id = item.log.Id,
+                    TenantId = item.log.TenantId,
+                    TenantName = tenant == null ? "PeopleOS platform" : tenant.Name,
+                    Action = item.log.Action,
+                    Entity = item.log.Entity,
+                    EntityId = item.log.EntityId,
+                    UserId = item.log.UserId,
+                    Details = item.log.Details,
+                    CreatedAt = item.log.CreatedAt
+                })
+            .ToListAsync();
+
+        return Ok(logs);
+    }
+
     [HttpPost("tenants/{id:int}/activate")]
     public Task<IActionResult> Activate(int id) => ChangeStatus(id, "Active", "Activated");
 

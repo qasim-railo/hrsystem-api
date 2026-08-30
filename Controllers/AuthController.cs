@@ -35,7 +35,10 @@ namespace HRSystem.API.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> Login([FromBody] LoginDto login)
         {
-            var user = await _auth.FindUserAsync(_db, login.Username);
+            if (string.IsNullOrWhiteSpace(login.Email))
+                return BadRequest("Email is required.");
+
+            var user = await _auth.FindUserByEmailAsync(_db, login.Email);
             if (user == null || !_auth.VerifyPassword(login.Password, user.PasswordHash))
                 return Unauthorized("Invalid credentials");
 

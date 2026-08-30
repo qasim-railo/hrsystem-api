@@ -21,3 +21,14 @@ public class UpdatePlanDto
     public long MaxStorageBytes { get; set; }
     public List<string> FeatureCodes { get; set; } = new();
 }
+
+public class CreatePlanDto : UpdatePlanDto
+{
+    public string Code { get; set; } = string.Empty;
+}
+
+public class PlanModuleDto
+{
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+}

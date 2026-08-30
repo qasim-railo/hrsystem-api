@@ -30,11 +30,11 @@ public class RegistrationController : ControllerBase
     public async Task<ActionResult<RegistrationResultDto>> Register(RegistrationDto dto)
     {
         var registrationNumber = dto.CommercialRegistrationNumber.Trim();
-        var username = dto.AdministratorUsername.Trim();
+        var administratorEmail = dto.AdministratorEmail.Trim().ToLowerInvariant();
         if (await _db.Companies.IgnoreQueryFilters().AnyAsync(c => c.CommercialRegistrationNumber == registrationNumber))
             return Conflict("A company with this commercial registration number is already registered.");
-        if (await _db.Users.AnyAsync(u => u.Username == username))
-            return Conflict("This administrator username is already registered.");
+        if (await _db.Users.IgnoreQueryFilters().AnyAsync(u => u.Username.ToLower() == administratorEmail))
+            return Conflict("This administrator email is already registered.");
 
         var code = BuildTenantCode(registrationNumber);
         if (await _db.Tenants.AnyAsync(t => t.Code == code))
@@ -83,27 +83,35 @@ public class RegistrationController : ControllerBase
             TradeName = dto.TradeName?.Trim(),
             CommercialRegistrationNumber = registrationNumber,
             Industry = dto.Industry?.Trim(),
-            EmployeeCount = dto.EmployeeCount,
-            Address = dto.Address.Trim(),
+            EmployeeCount = 1,
+            Address = "To be completed during onboarding",
             Country = tenant.Country,
             Phone = dto.Phone.Trim(),
-            Email = dto.Email.Trim(),
-            Website = dto.Website?.Trim(),
-            ContactPerson = dto.ContactPerson.Trim(),
-            ContactPhone = dto.ContactPhone.Trim()
+            Email = dto.AdministratorEmail.Trim(),
+            ContactPerson = dto.AdministratorName.Trim(),
+            ContactPhone = dto.Phone.Trim()
         });
 
         var adminRole = await _db.Roles.Include(r => r.RolePermissions)
             .SingleOrDefaultAsync(r => r.Name == "Admin" && r.TenantId == tenant.TenantId);
         if (adminRole == null)
         {
-            var template = await _db.Roles.AsNoTracking().Include(r => r.RolePermissions)
-                .OrderBy(r => r.Id).FirstAsync(r => r.Name == "Admin");
+            var template = await _db.Roles.IgnoreQueryFilters().AsNoTracking().Include(r => r.RolePermissions)
+                .OrderBy(r => r.Id).FirstOrDefaultAsync(r => r.Name == "Admin");
+            var permissionIds = template?.RolePermissions.Select(x => x.PermissionId).ToList()
+                ?? await _db.Permissions
+                    .Where(permission => permission.Name != "Platform.Tenants")
+                    .Select(permission => permission.Id)
+                    .ToListAsync();
+
+            if (permissionIds.Count == 0)
+                return Problem("No tenant administrator permissions are configured.", statusCode: StatusCodes.Status500InternalServerError);
+
             adminRole = new Role
             {
                 TenantId = tenant.TenantId,
                 Name = "Admin",
-                RolePermissions = template.RolePermissions.Select(x => new RolePermission { PermissionId = x.PermissionId }).ToList()
+                RolePermissions = permissionIds.Select(permissionId => new RolePermission { PermissionId = permissionId }).ToList()
             };
             _db.Roles.Add(adminRole);
             await _db.SaveChangesAsync();
@@ -111,7 +119,7 @@ public class RegistrationController : ControllerBase
         _db.Users.Add(new AppUser
         {
             TenantId = tenant.TenantId,
-            Username = username,
+            Username = administratorEmail,
             PasswordHash = _auth.HashPassword(dto.AdministratorPassword),
             UserRoles = new List<UserRole> { new() { RoleId = adminRole.Id } }
         });
@@ -121,7 +129,7 @@ public class RegistrationController : ControllerBase
             new TenantSetting { TenantId = tenant.TenantId, Key = "DefaultTimeZone", Value = tenant.TimeZone },
             new TenantSetting { TenantId = tenant.TenantId, Key = "AdministratorName", Value = dto.AdministratorName.Trim() },
             new TenantSetting { TenantId = tenant.TenantId, Key = "AdministratorEmail", Value = dto.AdministratorEmail.Trim() },
-            new TenantSetting { TenantId = tenant.TenantId, Key = "AdministratorPhone", Value = dto.AdministratorPhone.Trim() });
+            new TenantSetting { TenantId = tenant.TenantId, Key = "AdministratorPhone", Value = dto.Phone.Trim() });
         _db.TenantLeaveTypes.AddRange(
             new TenantLeaveType { TenantId = tenant.TenantId, Name = "Annual", DefaultDays = 21 },
             new TenantLeaveType { TenantId = tenant.TenantId, Name = "Sick", DefaultDays = 14 },
@@ -133,7 +141,7 @@ public class RegistrationController : ControllerBase
         return Created("api/registration", new RegistrationResultDto
         {
             TenantCode = tenant.Code,
-            AdministratorUsername = username,
+            AdministratorEmail = administratorEmail,
             Status = "Started",
             CompletedStep = 1
         });

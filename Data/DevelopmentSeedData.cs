@@ -102,13 +102,13 @@ public static class DevelopmentSeedData
 
         var seededUsers = new[]
         {
-            new { Username = "superadmin", RoleName = "PeopleOS Super Admin" },
-            new { Username = "admin", RoleName = "Admin" },
-            new { Username = "tenantadmin", RoleName = "Company Administrator" },
-            new { Username = "manager", RoleName = "Manager" },
-            new { Username = "hr", RoleName = "HR" },
-            new { Username = "employee", RoleName = "Employee" },
-            new { Username = "user1", RoleName = "Employee" }
+            new { Username = "qasim.railo@gmail.com", RoleName = "PeopleOS Super Admin" },
+            new { Username = "railo.solutions@gmail.com", RoleName = "Admin" },
+            new { Username = "tenantadmin@railo.services", RoleName = "Company Administrator" },
+            new { Username = "manager@railo.services", RoleName = "Manager" },
+            new { Username = "hr@railo.services", RoleName = "HR" },
+            new { Username = "employee@railo.services", RoleName = "Employee" },
+            new { Username = "user1@railo.services", RoleName = "Employee" }
         };
 
         foreach (var seededUser in seededUsers)
