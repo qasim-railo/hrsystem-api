@@ -23,7 +23,7 @@ namespace HRSystem.API.Controllers
         [Authorize(Policy = "Employees.View")]
         public async Task<IActionResult> GetAll([FromQuery] EmployeeFilterDto filter)
         {
-            // Enforce company access scope: if user is not Admin, restrict companies to claims
+            // Enforce company access scope: if user is not Admin, restrict companies to claims (when present)
             if (!User.IsInRole("Admin"))
             {
                 var allowed = GetAllowedCompanyIdsFromClaims();
@@ -39,11 +39,8 @@ namespace HRSystem.API.Controllers
                         filter.CompanyIds = filter.CompanyIds.Intersect(allowed).ToList();
                     }
                 }
-                else
-                {
-                    // No allowed companies; return empty
-                    return Ok(new { items = new object[0], total = 0 });
-                }
+                // If no CompanyIds claim is present, the user is not scoped to specific companies;
+                // tenant isolation (query filters) already restricts results to their own tenant.
             }
 
             var (items, total) = await _service.GetFilteredAsync(filter ?? new EmployeeFilterDto());

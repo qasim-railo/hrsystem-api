@@ -315,6 +315,10 @@ using (var scope = app.Services.CreateScope())
     db.SaveChanges();
 
     await DevelopmentSeedData.SeedAsync(db, auth);
+    if (app.Environment.IsDevelopment())
+    {
+        await DemoTenantSeeder.SeedAsync(db, auth);
+    }
 }
 app.UseStaticFiles();
 
