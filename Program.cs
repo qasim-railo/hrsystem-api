@@ -39,12 +39,12 @@ builder.Services.AddAuthentication("Bearer")
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
-            ValidIssuer = jwtSettings.Issuer,
+            ValidIssuer = jwtSettings?.Issuer,
             ValidateAudience = true,
-            ValidAudience = jwtSettings.Audience,
+            ValidAudience = jwtSettings?.Audience,
             ValidateLifetime = true,
             IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(jwtSettings.Key)),
+                Encoding.UTF8.GetBytes(jwtSettings?.Key ?? "")),
             ValidateIssuerSigningKey = true
         };
     });
@@ -117,144 +117,59 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     var auth = scope.ServiceProvider.GetRequiredService<AuthService>();
-    var tenant = db.Tenants.SingleOrDefault(t => t.Code == "DEFAULT");
-    if (tenant == null)
+    var platformTenant = db.Tenants.SingleOrDefault(t => t.Code == "PEOPLEOS");
+    if (platformTenant == null)
     {
-        tenant = new HRSystem.API.Models.Tenant
+        platformTenant = new HRSystem.API.Models.Tenant
         {
-            Name = "Default Tenant",
-            Code = "DEFAULT",
+            Name = "PeopleOS Platform",
+            Code = "PEOPLEOS",
+            Status = "Active",
+            LifecycleStatus = "Active",
             Country = "QA",
             Currency = "QAR",
             TimeZone = "Asia/Qatar",
             CountryCode = "QA",
             CurrencyCode = "QAR",
-            TimeZoneId = "Asia/Qatar"
+            TimeZoneId = "Asia/Qatar",
+            PlanId = 1,
+            PlanName = "PeopleOS Essential"
         };
-        db.Tenants.Add(tenant);
+        db.Tenants.Add(platformTenant);
         db.SaveChanges();
     }
-    foreach (var existingTenant in db.Tenants.ToList())
-    {
-        if (!db.Subscriptions.Any(s => s.TenantId == existingTenant.TenantId))
-        {
-            var now = DateTime.UtcNow;
-            db.Subscriptions.Add(new HRSystem.API.Models.Subscription
-            {
-                TenantId = existingTenant.TenantId,
-                PlanId = existingTenant.PlanId,
-                Status = Enum.TryParse<HRSystem.API.Models.SubscriptionStatus>(existingTenant.Status, true, out var status)
-                    ? status : HRSystem.API.Models.SubscriptionStatus.Trial,
-                StartDate = existingTenant.CreatedAt,
-                RenewalDate = existingTenant.TrialEndDate ?? now.AddMonths(1),
-                TrialStartDate = existingTenant.TrialStartDate,
-                TrialEndDate = existingTenant.TrialEndDate,
-                BillingCycle = "Monthly",
-                Notes = "Created during subscription lifecycle initialization."
-            });
-        }
-    }
-    db.SaveChanges();
+
     var permissionNames = new[] { "Employees.View", "Employees.Create", "Employees.Edit", "Employees.ChangeStatus", "Employees.OverrideDuplicate", "Employees.Export", "Employees.ViewSensitiveData", "Files.View", "Files.Upload", "Files.Replace", "Files.Delete", "Files.Restore", "Files.Purge", "Users.Manage", "Workflows.Manage" };
     permissionNames = permissionNames.Append("Platform.Tenants").ToArray();
     foreach (var name in permissionNames)
         if (!db.Permissions.Any(p => p.Name == name)) db.Permissions.Add(new Permission { Name = name });
     db.SaveChanges();
 
-    var allRolePermissions = db.RolePermissions.IgnoreQueryFilters().ToList();
-    var allUserRoles = db.UserRoles.IgnoreQueryFilters().ToList();
-
-    void RemoveDuplicateRolePermissions(Role role)
-    {
-        var duplicatePermissions = allRolePermissions
-            .Where(rp => rp.RoleId == role.Id)
-            .GroupBy(rp => rp.PermissionId)
-            .Where(g => g.Count() > 1)
-            .SelectMany(g => g.Skip(1))
-            .ToList();
-
-        foreach (var duplicate in duplicatePermissions)
-        {
-            db.RolePermissions.Remove(duplicate);
-            allRolePermissions.Remove(duplicate);
-        }
-    }
-
-    void EnsureRolePermission(Role role, int permissionId)
-    {
-        RemoveDuplicateRolePermissions(role);
-
-        var existingPermissionIds = allRolePermissions
-            .Where(rp => rp.RoleId == role.Id)
-            .Select(rp => rp.PermissionId)
-            .ToHashSet();
-
-        if (!existingPermissionIds.Contains(permissionId))
-        {
-            var newRolePermission = new RolePermission { RoleId = role.Id, PermissionId = permissionId };
-            db.RolePermissions.Add(newRolePermission);
-            allRolePermissions.Add(newRolePermission);
-        }
-    }
-
-    void EnsureUserRole(AppUser user, int roleId)
-    {
-        var duplicateUserRoles = allUserRoles
-            .Where(ur => ur.UserId == user.Id)
-            .GroupBy(ur => ur.RoleId)
-            .Where(g => g.Count() > 1)
-            .SelectMany(g => g.Skip(1))
-            .ToList();
-
-        foreach (var duplicate in duplicateUserRoles)
-        {
-            db.UserRoles.Remove(duplicate);
-            allUserRoles.Remove(duplicate);
-        }
-
-        var existingRoleIds = allUserRoles
-            .Where(ur => ur.UserId == user.Id)
-            .Select(ur => ur.RoleId)
-            .ToHashSet();
-
-        if (!existingRoleIds.Contains(roleId))
-        {
-            var newUserRole = new UserRole { UserId = user.Id, RoleId = roleId };
-            db.UserRoles.Add(newUserRole);
-            allUserRoles.Add(newUserRole);
-        }
-    }
-
-    var existingPlatformRoles = db.Roles.IgnoreQueryFilters()
-        .Where(r => r.Name == "PeopleOS Super Admin")
-        .OrderByDescending(r => r.Id)
-        .ToList();
-    var platformRole = existingPlatformRoles.FirstOrDefault(r => r.TenantId == tenant.TenantId)
-        ?? existingPlatformRoles.FirstOrDefault()
-        ?? new Role { Name = "PeopleOS Super Admin", TenantId = tenant.TenantId };
+    var platformRole = db.Roles.IgnoreQueryFilters()
+        .SingleOrDefault(r => r.Name == "PeopleOS Super Admin" && r.TenantId == platformTenant.TenantId)
+        ?? new Role { Name = "PeopleOS Super Admin", TenantId = platformTenant.TenantId };
     if (platformRole.Id == 0)
     {
         db.Roles.Add(platformRole);
+        db.SaveChanges();
     }
-    else if (platformRole.TenantId != tenant.TenantId)
-    {
-        platformRole.TenantId = tenant.TenantId;
-    }
-
-    foreach (var duplicate in existingPlatformRoles.Where(r => r.Id != platformRole.Id).ToList())
-        db.Roles.Remove(duplicate);
-
-    db.SaveChanges();
 
     var platformPermission = db.Permissions.Single(p => p.Name == "Platform.Tenants");
-    EnsureRolePermission(platformRole, platformPermission.Id);
-    var existingSuperAdmins = db.Users.IgnoreQueryFilters()
-        .Where(u => u.Username == "superadmin" || u.Username == "qasim.railo@gmail.com")
-        .OrderByDescending(u => u.Id)
-        .ToList();
-    var superAdmin = existingSuperAdmins.FirstOrDefault(u => u.TenantId == tenant.TenantId)
-        ?? existingSuperAdmins.FirstOrDefault()
-        ?? new AppUser { Username = "qasim.railo@gmail.com", PasswordHash = auth.HashPassword(DevelopmentDefaultPassword), TenantId = tenant.TenantId };
+    if (!db.RolePermissions.IgnoreQueryFilters().Any(rp => rp.RoleId == platformRole.Id && rp.PermissionId == platformPermission.Id))
+    {
+        db.RolePermissions.Add(new RolePermission { RoleId = platformRole.Id, PermissionId = platformPermission.Id });
+        db.SaveChanges();
+    }
+
+    var superAdmin = db.Users.IgnoreQueryFilters()
+        .SingleOrDefault(u => u.Username == "qasim.railo@gmail.com")
+        ?? new AppUser
+        {
+            Username = "qasim.railo@gmail.com",
+            PasswordHash = auth.HashPassword(DevelopmentDefaultPassword),
+            TenantId = platformTenant.TenantId,
+            IsActive = true
+        };
     if (superAdmin.Id == 0)
     {
         db.Users.Add(superAdmin);
@@ -262,65 +177,15 @@ using (var scope = app.Services.CreateScope())
     }
     else
     {
-        superAdmin.TenantId = tenant.TenantId;
+        superAdmin.TenantId = platformTenant.TenantId;
         superAdmin.Username = "qasim.railo@gmail.com";
         superAdmin.PasswordHash = auth.HashPassword(DevelopmentDefaultPassword);
+        superAdmin.IsActive = true;
     }
-    foreach (var duplicate in existingSuperAdmins.Where(u => u.Id != superAdmin.Id).ToList())
-        db.Users.Remove(duplicate);
-    EnsureUserRole(superAdmin, platformRole.Id);
-    db.SaveChanges();
-    var adminRole = db.Roles.IgnoreQueryFilters().Include(r => r.RolePermissions)
-        .FirstOrDefault(r => r.Name == "Admin" && r.TenantId == tenant.TenantId) ?? new Role { Name = "Admin", TenantId = tenant.TenantId };
-    if (adminRole.Id == 0) db.Roles.Add(adminRole);
-    adminRole.TenantId = tenant.TenantId;
-    db.SaveChanges();
-    RemoveDuplicateRolePermissions(adminRole);
-    foreach (var platformAssignment in db.RolePermissions.IgnoreQueryFilters().Where(rp => rp.RoleId == adminRole.Id && rp.PermissionId == platformPermission.Id).ToList())
-        db.RolePermissions.Remove(platformAssignment);
-    foreach (var permission in db.Permissions.Where(p => permissionNames.Contains(p.Name) && p.Name != "Platform.Tenants"))
-        EnsureRolePermission(adminRole, permission.Id);
-    var companyAdministratorRole = db.Roles.IgnoreQueryFilters().Include(r => r.RolePermissions)
-        .SingleOrDefault(r => r.Name == "Company Administrator" && r.TenantId == tenant.TenantId) ?? new Role { Name = "Company Administrator", TenantId = tenant.TenantId };
-    if (companyAdministratorRole.Id == 0)
-    {
-        db.Roles.Add(companyAdministratorRole);
-        db.SaveChanges();
-    }
-    companyAdministratorRole.TenantId = tenant.TenantId;
-    RemoveDuplicateRolePermissions(companyAdministratorRole);
-    foreach (var permission in db.Permissions.Where(p => permissionNames.Contains(p.Name) && p.Name != "Platform.Tenants"))
-        EnsureRolePermission(companyAdministratorRole, permission.Id);
-    db.SaveChanges();
-    var existingAdmins = db.Users.IgnoreQueryFilters()
-        .Where(u => u.Username == "admin" || u.Username == "railo.solutions@gmail.com")
-        .OrderByDescending(u => u.Id)
-        .ToList();
-    var admin = existingAdmins.FirstOrDefault(u => u.TenantId == tenant.TenantId)
-        ?? existingAdmins.FirstOrDefault()
-        ?? new AppUser { Username = "railo.solutions@gmail.com", PasswordHash = auth.HashPassword(DevelopmentDefaultPassword), TenantId = tenant.TenantId };
-    if (admin.Id == 0)
-    {
-        db.Users.Add(admin);
-        db.SaveChanges();
-    }
-    else
-    {
-        admin.TenantId = tenant.TenantId;
-        admin.Username = "railo.solutions@gmail.com";
-        admin.PasswordHash = auth.HashPassword(DevelopmentDefaultPassword);
-    }
-    foreach (var duplicate in existingAdmins.Where(u => u.Id != admin.Id).ToList())
-        db.Users.Remove(duplicate);
-    EnsureUserRole(admin, adminRole.Id);
-    EnsureUserRole(admin, companyAdministratorRole.Id);
-    db.SaveChanges();
 
-    await DevelopmentSeedData.SeedAsync(db, auth);
-    if (app.Environment.IsDevelopment())
-    {
-        await DemoTenantSeeder.SeedAsync(db, auth);
-    }
+    if (!db.UserRoles.IgnoreQueryFilters().Any(ur => ur.UserId == superAdmin.Id && ur.RoleId == platformRole.Id))
+        db.UserRoles.Add(new UserRole { UserId = superAdmin.Id, RoleId = platformRole.Id });
+    db.SaveChanges();
 }
 app.UseStaticFiles();
 

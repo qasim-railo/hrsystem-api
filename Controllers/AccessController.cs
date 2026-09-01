@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using HRSystem.API.Tenancy;
 using System.Security.Cryptography;
+using System.Security.Claims;
 using System.Text.Json;
 
 namespace HRSystem.API.Controllers;
@@ -153,8 +154,24 @@ public class AccessController : ControllerBase
     public async Task<IActionResult> DisableUser(int id)
     {
         if (_tenant.TenantId is not int tenantId) return Forbid();
-        var user = await _db.Users.SingleOrDefaultAsync(u => u.Id == id && u.TenantId == tenantId);
+
+        var actingUserIdClaim = User.FindFirstValue("user_id");
+        if (!int.TryParse(actingUserIdClaim, out var actingUserId) || actingUserId <= 0) return Forbid();
+        if (actingUserId == id) return BadRequest("You cannot deactivate your own account. Ask another administrator to do this.");
+
+        var actingUser = await _db.Users.Include(u => u.UserRoles).ThenInclude(ur => ur.Role)
+            .SingleOrDefaultAsync(u => u.Id == actingUserId && u.TenantId == tenantId);
+        if (actingUser == null) return Forbid();
+
+        var user = await _db.Users.Include(u => u.UserRoles).ThenInclude(ur => ur.Role)
+            .SingleOrDefaultAsync(u => u.Id == id && u.TenantId == tenantId);
         if (user == null) return NotFound();
+
+        var actingRoleNames = actingUser.UserRoles.Select(ur => ur.Role.Name);
+        var targetRoleNames = user.UserRoles.Select(ur => ur.Role.Name);
+        if (!RoleHierarchy.CanManage(actingRoleNames, targetRoleNames))
+            return StatusCode(403, "You can only deactivate users in a lower management rank than your own.");
+
         user.IsActive = false;
         await _db.SaveChangesAsync();
         return NoContent();

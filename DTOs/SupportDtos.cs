@@ -2,8 +2,8 @@ namespace HRSystem.API.DTOs;
 
 public sealed class SupportHelpCenterDto
 {
-    public string ContactEmail { get; set; } = "support@peopleos.local";
-    public string ContactPhone { get; set; } = "+974 4000 0000";
+    public string ContactEmail { get; set; } = "qasim.railo@gmail.com";
+    public IReadOnlyList<string> ContactPhones { get; set; } = ["+974 74001784", "+92 3105293728"];
     public string SupportHours { get; set; } = "Sunday to Thursday, 8:00 AM – 6:00 PM";
     public IReadOnlyList<SupportArticleDto> Articles { get; set; } = Array.Empty<SupportArticleDto>();
 }

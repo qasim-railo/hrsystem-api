@@ -47,8 +47,8 @@ public sealed class SupportController : ControllerBase
 
         return Ok(new SupportHelpCenterDto
         {
-            ContactEmail = "support@peopleos.local",
-            ContactPhone = "+974 4000 0000",
+            ContactEmail = "qasim.railo@gmail.com",
+            ContactPhones = ["+974 74001784", "+92 3105293728"],
             SupportHours = "Sunday to Thursday, 8:00 AM – 6:00 PM",
             Articles = articles
         });
@@ -160,7 +160,7 @@ public sealed class SupportController : ControllerBase
             Status = "Open",
             RequesterUserId = userId,
             RequesterName = string.IsNullOrWhiteSpace(request.RequesterName) ? userName : request.RequesterName.Trim(),
-            RequesterEmail = string.IsNullOrWhiteSpace(request.RequesterEmail) ? (User.FindFirstValue(ClaimTypes.Email) ?? "support@peopleos.local") : request.RequesterEmail.Trim(),
+            RequesterEmail = string.IsNullOrWhiteSpace(request.RequesterEmail) ? (User.FindFirstValue(ClaimTypes.Email) ?? "qasim.railo@gmail.com") : request.RequesterEmail.Trim(),
             Source = string.IsNullOrWhiteSpace(request.Source) ? "InApp" : request.Source.Trim(),
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
