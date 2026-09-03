@@ -1,6 +1,7 @@
 ﻿using HRSystem.API.Data;
 using HRSystem.API.DTOs;
 using HRSystem.API.Models;
+using HRSystem.API.Tenancy;
 using Microsoft.EntityFrameworkCore;
 
 namespace HRSystem.API.Services
@@ -8,10 +9,12 @@ namespace HRSystem.API.Services
     public class EmploymentDetailsService : IEmploymentDetailsService
     {
         private readonly AppDbContext _context;
+        private readonly ICurrentTenant _tenant;
 
-        public EmploymentDetailsService(AppDbContext context)
+        public EmploymentDetailsService(AppDbContext context, ICurrentTenant tenant)
         {
             _context = context;
+            _tenant = tenant;
         }
 
         // Private helper: Map model to DTO
@@ -21,6 +24,8 @@ namespace HRSystem.API.Services
             EmployeeId = ed.EmployeeId,
             JoiningDate = ed.JoiningDate,
             Category = ed.Category,
+            EmployeeCategoryId = ed.EmployeeCategoryId,
+            DesignationId = ed.Employee?.PositionId,
             OfferDesignation = ed.OfferDesignation,
             MOLDesignation = ed.MOLDesignation,
             BasicSalary = ed.BasicSalary,
@@ -52,12 +57,17 @@ namespace HRSystem.API.Services
         };
 
         // Private helper: Update model from DTO
-        private static void UpdateModelFromDto(EmploymentDetail ed, UpdateEmploymentDetailDto dto)
+        private async Task UpdateModelFromDto(EmploymentDetail ed, UpdateEmploymentDetailDto dto)
         {
             ed.EmployeeId = dto.EmployeeId;
             ed.JoiningDate = dto.JoiningDate;
-            ed.Category = dto.Category;
-            ed.OfferDesignation = dto.OfferDesignation;
+            var (category, designation) = await ResolveClassification(dto.EmployeeCategoryId, dto.DesignationId);
+            if (dto.DesignationId.HasValue && designation == null) throw new InvalidOperationException("Select an active tenant designation.");
+            if (dto.EmployeeCategoryId.HasValue && category == null) throw new InvalidOperationException("Select an active tenant category.");
+            if (ed.Employee != null) ed.Employee.PositionId = dto.DesignationId;
+            ed.EmployeeCategoryId = dto.EmployeeCategoryId;
+            ed.Category = category ?? dto.Category;
+            ed.OfferDesignation = designation ?? dto.OfferDesignation;
             ed.MOLDesignation = dto.MOLDesignation;
             ed.BasicSalary = dto.BasicSalary;
             ed.AccommodationAllowance = dto.AccommodationAllowance;
@@ -96,7 +106,7 @@ namespace HRSystem.API.Services
 
         public async Task<EmploymentDetailDto?> GetByIdAsync(int id)
         {
-            var ed = await _context.EmploymentDetails.FindAsync(id);
+            var ed = await TenantEmploymentDetails().Include(x => x.Employee).FirstOrDefaultAsync(x => x.EmploymentDetailId == id);
             if (ed == null) return null;
 
             return MapToDto(ed);
@@ -104,8 +114,7 @@ namespace HRSystem.API.Services
 
         public async Task<EmploymentDetailDto?> GetByEmployeeIdAsync(int employeeId)
         {
-            var ed = await _context.EmploymentDetails
-                .FirstOrDefaultAsync(e => e.EmployeeId == employeeId);
+            var ed = await TenantEmploymentDetails().Include(x => x.Employee).FirstOrDefaultAsync(e => e.EmployeeId == employeeId);
 
             if (ed == null) return null;
 
@@ -114,15 +123,20 @@ namespace HRSystem.API.Services
 
         public async Task<EmploymentDetailDto> CreateAsync(CreateEmploymentDetailDto dto)
         {
-            var employeeExists = await _context.Employees.AnyAsync(e => e.EmployeeId == dto.EmployeeId);
-            if (!employeeExists) throw new InvalidOperationException("Invalid EmployeeId.");
+            var employee = await TenantEmployees().SingleOrDefaultAsync(e => e.EmployeeId == dto.EmployeeId);
+            if (employee == null) throw new InvalidOperationException("Invalid EmployeeId.");
+            var (category, designation) = await ResolveClassification(dto.EmployeeCategoryId, dto.DesignationId);
+            if (dto.DesignationId.HasValue && designation == null) throw new InvalidOperationException("Select an active tenant designation.");
+            if (dto.EmployeeCategoryId.HasValue && category == null) throw new InvalidOperationException("Select an active tenant category.");
+            employee.PositionId = dto.DesignationId;
 
             var ed = new EmploymentDetail
             {
                 EmployeeId = dto.EmployeeId,
                 JoiningDate = dto.JoiningDate,
-                Category = dto.Category,
-                OfferDesignation = dto.OfferDesignation,
+                Category = category ?? dto.Category,
+                EmployeeCategoryId = dto.EmployeeCategoryId,
+                OfferDesignation = designation ?? dto.OfferDesignation,
                 MOLDesignation = dto.MOLDesignation,
                 BasicSalary = dto.BasicSalary,
                 AccommodationAllowance = dto.AccommodationAllowance,
@@ -155,34 +169,52 @@ namespace HRSystem.API.Services
             _context.EmploymentDetails.Add(ed);
             await _context.SaveChangesAsync();
 
-            var employee = await _context.Employees.FirstOrDefaultAsync(e => e.EmployeeId == ed.EmployeeId);
-            if (employee != null)
-            {
-                _context.EmployeeEmploymentHistories.Add(CreateHistory(employee, ed, ed.JoiningDate, "Initial employment record"));
-                await _context.SaveChangesAsync();
-            }
+            _context.EmployeeEmploymentHistories.Add(CreateHistory(employee, ed, ed.JoiningDate, "Initial employment record"));
+            await _context.SaveChangesAsync();
 
             return MapToDto(ed);
         }
 
         public async Task<EmploymentDetailDto?> UpdateAsync(int id, UpdateEmploymentDetailDto dto)
         {
-            var ed = await _context.EmploymentDetails.FindAsync(id);
+            var ed = await TenantEmploymentDetails().Include(x => x.Employee).FirstOrDefaultAsync(x => x.EmploymentDetailId == id);
             if (ed == null) return null;
             if (dto.EmployeeId != ed.EmployeeId)
                 throw new InvalidOperationException("Employment details cannot be reassigned to another employee.");
 
-            var employee = await _context.Employees.FirstOrDefaultAsync(e => e.EmployeeId == ed.EmployeeId);
+            var employee = await TenantEmployees().SingleOrDefaultAsync(e => e.EmployeeId == ed.EmployeeId);
             if (employee != null)
             {
                 var history = CreateHistory(employee, ed, ed.JoiningDate, "Employment record superseded");
                 history.EffectiveTo = DateTime.UtcNow;
                 _context.EmployeeEmploymentHistories.Add(history);
             }
-            UpdateModelFromDto(ed, dto);
+            await UpdateModelFromDto(ed, dto);
             await _context.SaveChangesAsync();
 
             return MapToDto(ed);
+        }
+
+        private IQueryable<Employee> TenantEmployees() =>
+            _tenant.TenantId is int tenantId
+                ? _context.Employees.Where(x => x.TenantId == tenantId)
+                : Enumerable.Empty<Employee>().AsQueryable();
+
+        private IQueryable<EmploymentDetail> TenantEmploymentDetails() =>
+            _tenant.TenantId is int tenantId
+                ? _context.EmploymentDetails.Where(x => x.TenantId == tenantId)
+                : Enumerable.Empty<EmploymentDetail>().AsQueryable();
+
+        private async Task<(string? Category, string? Designation)> ResolveClassification(int? categoryId, int? designationId)
+        {
+            if (_tenant.TenantId is not int tenantId) throw new InvalidOperationException("A tenant context is required.");
+            var category = categoryId.HasValue
+                ? await _context.EmployeeCategories.SingleOrDefaultAsync(x => x.TenantId == tenantId && x.EmployeeCategoryId == categoryId && x.IsActive)
+                : null;
+            var designation = designationId.HasValue
+                ? await _context.Positions.SingleOrDefaultAsync(x => x.TenantId == tenantId && x.PositionId == designationId && x.IsActive)
+                : null;
+            return (category?.Name, designation?.Name);
         }
 
         private static EmployeeEmploymentHistory CreateHistory(Employee employee, EmploymentDetail detail, DateTime effectiveFrom, string reason)
@@ -209,7 +241,7 @@ namespace HRSystem.API.Services
 
         public async Task<bool> DeleteAsync(int id)
         {
-            var ed = await _context.EmploymentDetails.FindAsync(id);
+            var ed = await TenantEmploymentDetails().FirstOrDefaultAsync(x => x.EmploymentDetailId == id);
             if (ed == null) return false;
 
             _context.EmploymentDetails.Remove(ed);

@@ -2,6 +2,7 @@ using System.Security.Claims;
 using HRSystem.API.Data;
 using HRSystem.API.DTOs;
 using HRSystem.API.Models;
+using HRSystem.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -10,17 +11,20 @@ namespace HRSystem.API.Controllers;
 
 [ApiController]
 [Route("api/approval-workflows")]
-[Authorize(Policy = "Workflows.Manage")]
+[Authorize]
 public class ApprovalWorkflowsController : ControllerBase
 {
     private readonly AppDbContext _db;
-    public ApprovalWorkflowsController(AppDbContext db) => _db = db;
+    private readonly IEmployeeService _employees;
+    public ApprovalWorkflowsController(AppDbContext db, IEmployeeService employees) { _db = db; _employees = employees; }
 
     [HttpGet]
+    [Authorize(Policy = "Workflows.Manage")]
     public async Task<ActionResult<IEnumerable<ApprovalWorkflowDto>>> List() =>
         Ok(await _db.ApprovalWorkflows.Include(x => x.Steps).OrderBy(x => x.Module).ThenBy(x => x.Name).Select(MapExpression).ToListAsync());
 
     [HttpGet("{id:int}")]
+    [Authorize(Policy = "Workflows.Manage")]
     public async Task<ActionResult<ApprovalWorkflowDto>> Get(int id)
     {
         var workflow = await _db.ApprovalWorkflows.Include(x => x.Steps).SingleOrDefaultAsync(x => x.Id == id);
@@ -28,6 +32,7 @@ public class ApprovalWorkflowsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = "Workflows.Manage")]
     public async Task<ActionResult<ApprovalWorkflowDto>> Create(SaveApprovalWorkflowDto dto)
     {
         var validation = Validate(dto);
@@ -40,6 +45,7 @@ public class ApprovalWorkflowsController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Policy = "Workflows.Manage")]
     public async Task<ActionResult<ApprovalWorkflowDto>> Update(int id, SaveApprovalWorkflowDto dto)
     {
         var validation = Validate(dto);
@@ -52,6 +58,7 @@ public class ApprovalWorkflowsController : ControllerBase
     }
 
     [HttpPost("{id:int}/requests")]
+    [Authorize(Policy = "Workflows.Manage")]
     public async Task<ActionResult> CreateRequest(int id, CreateApprovalRequestDto dto)
     {
         var workflow = await _db.ApprovalWorkflows.Include(x => x.Steps).SingleOrDefaultAsync(x => x.Id == id && x.IsActive);
@@ -78,6 +85,7 @@ public class ApprovalWorkflowsController : ControllerBase
         if (decision is not ("approved" or "rejected")) return BadRequest("Decision must be Approved or Rejected.");
         var step = request.Workflow.Steps.SingleOrDefault(x => x.StepOrder == request.CurrentStepOrder);
         if (step == null) return Conflict("The current workflow step is invalid.");
+        if (!User.IsInRole(step.ApproverRole)) return Forbid();
         _db.ApprovalActions.Add(new ApprovalAction { ApprovalRequestId = id, StepOrder = step.StepOrder, ActionByUserId = CurrentUserId(), Decision = decision, Comments = dto.Comments?.Trim() ?? string.Empty });
         if (decision == "rejected") { request.Status = "Rejected"; request.CompletedAt = DateTime.UtcNow; }
         else
@@ -87,6 +95,10 @@ public class ApprovalWorkflowsController : ControllerBase
             else request.CurrentStepOrder = next.StepOrder;
         }
         await _db.SaveChangesAsync();
+        if (request.Module.Equals("Employee", StringComparison.OrdinalIgnoreCase) && request.CompletedAt.HasValue &&
+            request.Reference.StartsWith("employee:", StringComparison.OrdinalIgnoreCase) &&
+            int.TryParse(request.Reference["employee:".Length..], out var employeeId))
+            await _employees.SetRecordStatusAsync(employeeId, request.Status == "Approved" ? EmployeeRecordStatus.Approved : EmployeeRecordStatus.Rejected);
         return Ok(new { request.Id, request.Status, request.CurrentStepOrder });
     }
 

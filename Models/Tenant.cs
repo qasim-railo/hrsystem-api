@@ -13,6 +13,12 @@ public class Tenant
     public string CountryCode { get; set; } = "QA";
     public string CurrencyCode { get; set; } = "QAR";
     public string TimeZoneId { get; set; } = "Asia/Qatar";
+    public int DefaultCountryId { get; set; }
+    public Country DefaultCountry { get; set; } = null!;
+    public int DefaultCurrencyId { get; set; }
+    public Currency DefaultCurrency { get; set; } = null!;
+    public string DefaultTimeZoneId { get; set; } = "Asia/Qatar";
+    public TimeZoneMaster DefaultTimeZone { get; set; } = null!;
     public string DateFormat { get; set; } = "dd/MM/yyyy";
     public string NumberFormat { get; set; } = "en-QA";
     public string DisplayName { get; set; } = "";

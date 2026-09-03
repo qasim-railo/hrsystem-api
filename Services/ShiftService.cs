@@ -31,6 +31,7 @@ namespace HRSystem.API.Services
 
         public async Task<ShiftDto> CreateAsync(ShiftDto dto)
         {
+            Validate(dto);
             var shift = _mapper.Map<Shift>(dto);
             _context.Shifts.Add(shift);
             await _context.SaveChangesAsync();
@@ -39,11 +40,18 @@ namespace HRSystem.API.Services
 
         public async Task UpdateAsync(int id, ShiftDto dto)
         {
+            Validate(dto);
             var shift = await _context.Shifts.FindAsync(id);
             if (shift == null) throw new Exception("Shift not found");
 
             _mapper.Map(dto, shift);
             await _context.SaveChangesAsync();
+        }
+
+        private static void Validate(ShiftDto dto)
+        {
+            if (dto.BreakMinutes < 0 || dto.StartTime == dto.EndTime || dto.EffectiveTo < dto.EffectiveFrom)
+                throw new ArgumentException("Shift break, times, or effective dates are invalid.");
         }
 
         public async Task DeleteAsync(int id)

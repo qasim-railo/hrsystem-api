@@ -270,6 +270,9 @@ namespace HRSystem.API.Migrations
                     b.Property<decimal>("DefaultWorkingHours")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<int>("ExpectedWorkMinutes")
+                        .HasColumnType("int");
+
                     b.Property<int>("GraceInMinutes")
                         .HasColumnType("int");
 
@@ -684,6 +687,183 @@ namespace HRSystem.API.Migrations
                     b.ToTable("Companies");
                 });
 
+            modelBuilder.Entity("HRSystem.API.Models.Country", b =>
+                {
+                    b.Property<int>("CountryId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CountryId"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("CountryId");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("Countries");
+
+                    b.HasData(
+                        new
+                        {
+                            CountryId = 1,
+                            Code = "QA",
+                            IsActive = true,
+                            Name = "Qatar"
+                        },
+                        new
+                        {
+                            CountryId = 2,
+                            Code = "AE",
+                            IsActive = true,
+                            Name = "United Arab Emirates"
+                        },
+                        new
+                        {
+                            CountryId = 3,
+                            Code = "SA",
+                            IsActive = true,
+                            Name = "Saudi Arabia"
+                        },
+                        new
+                        {
+                            CountryId = 4,
+                            Code = "IN",
+                            IsActive = true,
+                            Name = "India"
+                        },
+                        new
+                        {
+                            CountryId = 5,
+                            Code = "PK",
+                            IsActive = true,
+                            Name = "Pakistan"
+                        },
+                        new
+                        {
+                            CountryId = 6,
+                            Code = "GB",
+                            IsActive = true,
+                            Name = "United Kingdom"
+                        },
+                        new
+                        {
+                            CountryId = 7,
+                            Code = "US",
+                            IsActive = true,
+                            Name = "United States"
+                        });
+                });
+
+            modelBuilder.Entity("HRSystem.API.Models.Currency", b =>
+                {
+                    b.Property<int>("CurrencyId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CurrencyId"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("DecimalPlaces")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Symbol")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("CurrencyId");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("Currencies");
+
+                    b.HasData(
+                        new
+                        {
+                            CurrencyId = 1,
+                            Code = "QAR",
+                            DecimalPlaces = 2,
+                            IsActive = true,
+                            Name = "Qatari Riyal",
+                            Symbol = "QAR"
+                        },
+                        new
+                        {
+                            CurrencyId = 2,
+                            Code = "AED",
+                            DecimalPlaces = 2,
+                            IsActive = true,
+                            Name = "UAE Dirham",
+                            Symbol = "AED"
+                        },
+                        new
+                        {
+                            CurrencyId = 3,
+                            Code = "SAR",
+                            DecimalPlaces = 2,
+                            IsActive = true,
+                            Name = "Saudi Riyal",
+                            Symbol = "SAR"
+                        },
+                        new
+                        {
+                            CurrencyId = 4,
+                            Code = "USD",
+                            DecimalPlaces = 2,
+                            IsActive = true,
+                            Name = "US Dollar",
+                            Symbol = "$"
+                        },
+                        new
+                        {
+                            CurrencyId = 5,
+                            Code = "GBP",
+                            DecimalPlaces = 2,
+                            IsActive = true,
+                            Name = "Pound Sterling",
+                            Symbol = "£"
+                        },
+                        new
+                        {
+                            CurrencyId = 6,
+                            Code = "INR",
+                            DecimalPlaces = 2,
+                            IsActive = true,
+                            Name = "Indian Rupee",
+                            Symbol = "₹"
+                        },
+                        new
+                        {
+                            CurrencyId = 7,
+                            Code = "PKR",
+                            DecimalPlaces = 2,
+                            IsActive = true,
+                            Name = "Pakistani Rupee",
+                            Symbol = "Rs"
+                        });
+                });
+
             modelBuilder.Entity("HRSystem.API.Models.CustomFieldDefinition", b =>
                 {
                     b.Property<int>("CustomFieldDefinitionId")
@@ -899,6 +1079,9 @@ namespace HRSystem.API.Migrations
                     b.Property<int?>("PositionId")
                         .HasColumnType("int");
 
+                    b.Property<int>("RecordStatus")
+                        .HasColumnType("int");
+
                     b.Property<int?>("SectionId")
                         .HasColumnType("int");
 
@@ -965,6 +1148,45 @@ namespace HRSystem.API.Migrations
                     b.HasIndex("EmployeeId");
 
                     b.ToTable("EmployeeAssets");
+                });
+
+            modelBuilder.Entity("HRSystem.API.Models.EmployeeCategory", b =>
+                {
+                    b.Property<int>("EmployeeCategoryId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("EmployeeCategoryId"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int");
+
+                    b.HasKey("EmployeeCategoryId");
+
+                    b.HasIndex("TenantId", "Code")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("EmployeeCategories");
                 });
 
             modelBuilder.Entity("HRSystem.API.Models.EmployeeDocument", b =>
@@ -1194,6 +1416,9 @@ namespace HRSystem.API.Migrations
                     b.Property<DateTime>("EmiratesIssueDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<int?>("EmployeeCategoryId")
+                        .HasColumnType("int");
+
                     b.Property<int>("EmployeeId")
                         .HasColumnType("int");
 
@@ -1270,6 +1495,8 @@ namespace HRSystem.API.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("EmploymentDetailId");
+
+                    b.HasIndex("EmployeeCategoryId");
 
                     b.HasIndex("EmployeeId")
                         .IsUnique();
@@ -1810,6 +2037,9 @@ namespace HRSystem.API.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
+                    b.Property<int?>("OvertimeTypeId")
+                        .HasColumnType("int");
+
                     b.Property<decimal>("RateMultiplier")
                         .HasColumnType("decimal(18,2)");
 
@@ -1818,9 +2048,104 @@ namespace HRSystem.API.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("OvertimeTypeId");
+
                     b.HasIndex("TenantId", "Name", "EffectiveFrom");
 
                     b.ToTable("OvertimePolicies");
+                });
+
+            modelBuilder.Entity("HRSystem.API.Models.OvertimePolicyAssignment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("EffectiveFrom")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("EffectiveTo")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("OvertimePolicyId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Scope")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int?>("TargetId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OvertimePolicyId");
+
+                    b.HasIndex("TenantId", "OvertimePolicyId", "Scope", "TargetId", "EffectiveFrom")
+                        .IsUnique()
+                        .HasFilter("[TargetId] IS NOT NULL");
+
+                    b.ToTable("OvertimePolicyAssignments");
+                });
+
+            modelBuilder.Entity("HRSystem.API.Models.OvertimeType", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("ApprovalRequired")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("CalculationMethod")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Eligibility")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("MaximumMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("PayrollComponentId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("RateMultiplier")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PayrollComponentId");
+
+                    b.HasIndex("TenantId", "Code")
+                        .IsUnique();
+
+                    b.ToTable("OvertimeTypes");
                 });
 
             modelBuilder.Entity("HRSystem.API.Models.Payroll", b =>
@@ -2320,6 +2645,9 @@ namespace HRSystem.API.Migrations
                     b.Property<string>("Code")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int?>("DepartmentId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)");
 
@@ -2328,6 +2656,9 @@ namespace HRSystem.API.Migrations
 
                     b.Property<DateTime?>("EffectiveTo")
                         .HasColumnType("datetime2");
+
+                    b.Property<int?>("EmployeeCategoryId")
+                        .HasColumnType("int");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
@@ -2343,6 +2674,10 @@ namespace HRSystem.API.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("PositionId");
+
+                    b.HasIndex("DepartmentId");
+
+                    b.HasIndex("EmployeeCategoryId");
 
                     b.HasIndex("TeamId");
 
@@ -2404,6 +2739,15 @@ namespace HRSystem.API.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("BreakMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("EffectiveFrom")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("EffectiveTo")
+                        .HasColumnType("datetime2");
+
                     b.Property<TimeSpan>("EndTime")
                         .HasColumnType("time");
 
@@ -2418,6 +2762,10 @@ namespace HRSystem.API.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("WorkingDays")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -2818,9 +3166,19 @@ namespace HRSystem.API.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("DefaultCountryId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DefaultCurrencyId")
+                        .HasColumnType("int");
+
                     b.Property<string>("DefaultLanguage")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DefaultTimeZoneId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("DisplayName")
                         .IsRequired()
@@ -2890,9 +3248,42 @@ namespace HRSystem.API.Migrations
                     b.HasIndex("Code")
                         .IsUnique();
 
+                    b.HasIndex("DefaultCountryId");
+
+                    b.HasIndex("DefaultCurrencyId");
+
+                    b.HasIndex("DefaultTimeZoneId");
+
                     b.HasIndex("PlanId");
 
                     b.ToTable("Tenants");
+                });
+
+            modelBuilder.Entity("HRSystem.API.Models.TenantCurrency", b =>
+                {
+                    b.Property<int>("TenantCurrencyId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TenantCurrencyId"));
+
+                    b.Property<int>("CurrencyId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int");
+
+                    b.HasKey("TenantCurrencyId");
+
+                    b.HasIndex("CurrencyId");
+
+                    b.HasIndex("TenantId", "CurrencyId")
+                        .IsUnique();
+
+                    b.ToTable("TenantCurrencies");
                 });
 
             modelBuilder.Entity("HRSystem.API.Models.TenantLeaveType", b =>
@@ -2980,6 +3371,117 @@ namespace HRSystem.API.Migrations
                         .IsUnique();
 
                     b.ToTable("TenantSettings");
+                });
+
+            modelBuilder.Entity("HRSystem.API.Models.TenantWorkingDay", b =>
+                {
+                    b.Property<int>("TenantWorkingDayId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TenantWorkingDayId"));
+
+                    b.Property<int>("BreakMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DayOfWeek")
+                        .HasColumnType("int");
+
+                    b.Property<TimeSpan>("DefaultEndTime")
+                        .HasColumnType("time");
+
+                    b.Property<TimeSpan>("DefaultStartTime")
+                        .HasColumnType("time");
+
+                    b.Property<bool>("IsWorkingDay")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int");
+
+                    b.HasKey("TenantWorkingDayId");
+
+                    b.HasIndex("TenantId", "DayOfWeek")
+                        .IsUnique();
+
+                    b.ToTable("TenantWorkingDays");
+                });
+
+            modelBuilder.Entity("HRSystem.API.Models.TimeZoneMaster", b =>
+                {
+                    b.Property<string>("TimeZoneId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("CountryCode")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.HasKey("TimeZoneId");
+
+                    b.ToTable("TimeZones");
+
+                    b.HasData(
+                        new
+                        {
+                            TimeZoneId = "Asia/Qatar",
+                            CountryCode = "QA",
+                            DisplayName = "Qatar (Asia/Qatar)",
+                            IsActive = true
+                        },
+                        new
+                        {
+                            TimeZoneId = "Asia/Dubai",
+                            CountryCode = "AE",
+                            DisplayName = "United Arab Emirates (Asia/Dubai)",
+                            IsActive = true
+                        },
+                        new
+                        {
+                            TimeZoneId = "Asia/Riyadh",
+                            CountryCode = "SA",
+                            DisplayName = "Saudi Arabia (Asia/Riyadh)",
+                            IsActive = true
+                        },
+                        new
+                        {
+                            TimeZoneId = "Asia/Kolkata",
+                            CountryCode = "IN",
+                            DisplayName = "India (Asia/Kolkata)",
+                            IsActive = true
+                        },
+                        new
+                        {
+                            TimeZoneId = "Asia/Karachi",
+                            CountryCode = "PK",
+                            DisplayName = "Pakistan (Asia/Karachi)",
+                            IsActive = true
+                        },
+                        new
+                        {
+                            TimeZoneId = "Europe/London",
+                            CountryCode = "GB",
+                            DisplayName = "United Kingdom (Europe/London)",
+                            IsActive = true
+                        },
+                        new
+                        {
+                            TimeZoneId = "America/New_York",
+                            CountryCode = "US",
+                            DisplayName = "United States Eastern (America/New_York)",
+                            IsActive = true
+                        },
+                        new
+                        {
+                            TimeZoneId = "UTC",
+                            DisplayName = "Coordinated Universal Time (UTC)",
+                            IsActive = true
+                        });
                 });
 
             modelBuilder.Entity("HRSystem.API.Models.ApprovalAction", b =>
@@ -3259,6 +3761,11 @@ namespace HRSystem.API.Migrations
 
             modelBuilder.Entity("HRSystem.API.Models.EmploymentDetail", b =>
                 {
+                    b.HasOne("HRSystem.API.Models.EmployeeCategory", "EmployeeCategory")
+                        .WithMany()
+                        .HasForeignKey("EmployeeCategoryId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("HRSystem.API.Models.Employee", "Employee")
                         .WithOne("EmploymentDetail")
                         .HasForeignKey("HRSystem.API.Models.EmploymentDetail", "EmployeeId")
@@ -3266,6 +3773,8 @@ namespace HRSystem.API.Migrations
                         .IsRequired();
 
                     b.Navigation("Employee");
+
+                    b.Navigation("EmployeeCategory");
                 });
 
             modelBuilder.Entity("HRSystem.API.Models.FinalSettlement", b =>
@@ -3312,6 +3821,37 @@ namespace HRSystem.API.Migrations
                     b.Navigation("Employee");
                 });
 
+            modelBuilder.Entity("HRSystem.API.Models.OvertimePolicy", b =>
+                {
+                    b.HasOne("HRSystem.API.Models.OvertimeType", "OvertimeType")
+                        .WithMany()
+                        .HasForeignKey("OvertimeTypeId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("OvertimeType");
+                });
+
+            modelBuilder.Entity("HRSystem.API.Models.OvertimePolicyAssignment", b =>
+                {
+                    b.HasOne("HRSystem.API.Models.OvertimePolicy", "OvertimePolicy")
+                        .WithMany()
+                        .HasForeignKey("OvertimePolicyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("OvertimePolicy");
+                });
+
+            modelBuilder.Entity("HRSystem.API.Models.OvertimeType", b =>
+                {
+                    b.HasOne("HRSystem.API.Models.PayrollComponent", "PayrollComponent")
+                        .WithMany()
+                        .HasForeignKey("PayrollComponentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("PayrollComponent");
+                });
+
             modelBuilder.Entity("HRSystem.API.Models.Payroll", b =>
                 {
                     b.HasOne("HRSystem.API.Models.Employee", "Employee")
@@ -3347,10 +3887,24 @@ namespace HRSystem.API.Migrations
 
             modelBuilder.Entity("HRSystem.API.Models.Position", b =>
                 {
+                    b.HasOne("HRSystem.API.Models.Department", "Department")
+                        .WithMany()
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("HRSystem.API.Models.EmployeeCategory", "EmployeeCategory")
+                        .WithMany()
+                        .HasForeignKey("EmployeeCategoryId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("HRSystem.API.Models.Team", "Team")
                         .WithMany("Positions")
                         .HasForeignKey("TeamId")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Department");
+
+                    b.Navigation("EmployeeCategory");
 
                     b.Navigation("Team");
                 });
@@ -3446,13 +4000,48 @@ namespace HRSystem.API.Migrations
 
             modelBuilder.Entity("HRSystem.API.Models.Tenant", b =>
                 {
+                    b.HasOne("HRSystem.API.Models.Country", "DefaultCountry")
+                        .WithMany()
+                        .HasForeignKey("DefaultCountryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("HRSystem.API.Models.Currency", "DefaultCurrency")
+                        .WithMany()
+                        .HasForeignKey("DefaultCurrencyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("HRSystem.API.Models.TimeZoneMaster", "DefaultTimeZone")
+                        .WithMany()
+                        .HasForeignKey("DefaultTimeZoneId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("HRSystem.API.Models.Plan", "Plan")
                         .WithMany("Tenants")
                         .HasForeignKey("PlanId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.Navigation("DefaultCountry");
+
+                    b.Navigation("DefaultCurrency");
+
+                    b.Navigation("DefaultTimeZone");
+
                     b.Navigation("Plan");
+                });
+
+            modelBuilder.Entity("HRSystem.API.Models.TenantCurrency", b =>
+                {
+                    b.HasOne("HRSystem.API.Models.Currency", "Currency")
+                        .WithMany()
+                        .HasForeignKey("CurrencyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Currency");
                 });
 
             modelBuilder.Entity("HRSystem.API.Models.ApprovalRequest", b =>

@@ -99,6 +99,7 @@ builder.Services.Configure<FileStorageOptions>(
 builder.Services.AddSingleton<IFileStorageService, LocalFileStorageService>();
 builder.Services.AddScoped<IReferenceNumberService, ReferenceNumberService>();
 builder.Services.AddScoped<OvertimePolicyService>();
+builder.Services.AddScoped<TenantWorkingDayService>();
 builder.Services.AddSingleton<IMalwareScanner, NoOpMalwareScanner>();
 builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();

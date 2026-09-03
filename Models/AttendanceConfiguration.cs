@@ -11,4 +11,5 @@ public class AttendanceConfiguration : ITenantOwned
     public string LateEarlyRule { get; set; } = "Track";
     public bool ApprovalRequired { get; set; }
     public decimal DefaultWorkingHours { get; set; } = 8;
+    public int ExpectedWorkMinutes { get; set; } = 480;
 }

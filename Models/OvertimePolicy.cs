@@ -8,6 +8,8 @@ public class OvertimePolicy : ITenantOwned
     public string EmployeeCategory { get; set; } = "*";
     public string DayType { get; set; } = "Normal Day";
     public string Classification { get; set; } = "OT1";
+    public int? OvertimeTypeId { get; set; }
+    public OvertimeType? OvertimeType { get; set; }
     public decimal RateMultiplier { get; set; } = 1.25m;
     public int DailyThresholdMinutes { get; set; }
     public int MaximumApprovedMinutes { get; set; }

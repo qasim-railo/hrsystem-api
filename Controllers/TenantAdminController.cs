@@ -34,36 +34,78 @@ public class TenantAdminController : ControllerBase
         var tenant = await _db.Tenants.SingleOrDefaultAsync(t => t.TenantId == id);
         if (tenant == null) return NotFound();
         if (!string.IsNullOrWhiteSpace(dto.Name)) tenant.Name = dto.Name.Trim();
-        if (!string.IsNullOrWhiteSpace(dto.Country)) tenant.Country = dto.Country.Trim();
         if (!string.IsNullOrWhiteSpace(dto.Currency)) tenant.Currency = dto.Currency.Trim();
         if (!string.IsNullOrWhiteSpace(dto.TimeZone)) tenant.TimeZone = dto.TimeZone.Trim();
-        if (!string.IsNullOrWhiteSpace(dto.CountryCode)) tenant.CountryCode = dto.CountryCode.Trim().ToUpperInvariant();
-        if (!string.IsNullOrWhiteSpace(dto.CurrencyCode)) tenant.CurrencyCode = dto.CurrencyCode.Trim().ToUpperInvariant();
-        if (!string.IsNullOrWhiteSpace(dto.TimeZoneId)) tenant.TimeZoneId = dto.TimeZoneId.Trim();
+        if (dto.DefaultCountryId is int countryId) tenant.DefaultCountryId = countryId;
+        if (dto.DefaultCurrencyId is int currencyId) tenant.DefaultCurrencyId = currencyId;
+        if (!string.IsNullOrWhiteSpace(dto.DefaultTimeZoneId)) tenant.DefaultTimeZoneId = dto.DefaultTimeZoneId.Trim();
         if (!string.IsNullOrWhiteSpace(dto.DateFormat)) tenant.DateFormat = dto.DateFormat.Trim();
         if (!string.IsNullOrWhiteSpace(dto.NumberFormat)) tenant.NumberFormat = dto.NumberFormat.Trim();
+        var country = await _db.Countries.SingleOrDefaultAsync(item => item.CountryId == tenant.DefaultCountryId && item.IsActive);
+        var currency = await _db.Currencies.SingleOrDefaultAsync(item => item.CurrencyId == tenant.DefaultCurrencyId && item.IsActive);
+        if (country == null || currency == null)
+            return BadRequest("Select active PeopleOS localization master records.");
+        var timeZone = await _db.TimeZones.SingleOrDefaultAsync(item =>
+            item.TimeZoneId == tenant.DefaultTimeZoneId &&
+            item.CountryCode == country.Code &&
+            item.IsActive);
+        if (timeZone == null)
+            return BadRequest("Select an active time zone configured for the selected PeopleOS country.");
+        if (!await _db.TenantCurrencies.AnyAsync(item => item.TenantId == id && item.CurrencyId == tenant.DefaultCurrencyId && item.IsEnabled))
+            return BadRequest("Enable the default currency before selecting it.");
         if (!IsValidProfile(tenant))
             return BadRequest("Country, currency, timezone, date format, or number format is invalid.");
-        tenant.Country = tenant.CountryCode;
-        tenant.Currency = tenant.CurrencyCode;
-        tenant.TimeZone = tenant.TimeZoneId;
+        tenant.Country = tenant.CountryCode = country.Code;
+        tenant.Currency = tenant.CurrencyCode = currency.Code;
+        tenant.TimeZone = tenant.TimeZoneId = tenant.DefaultTimeZoneId;
         await _db.SaveChangesAsync();
         return Ok(ProfileResponse(tenant));
+    }
+
+    [HttpGet("currencies")]
+    public async Task<ActionResult<TenantCurrenciesDto>> GetCurrencies()
+    {
+        if (_tenant.TenantId is not int id) return Forbid();
+        return Ok(new TenantCurrenciesDto
+        {
+            CurrencyIds = await _db.TenantCurrencies.AsNoTracking().Where(currency => currency.TenantId == id && currency.IsEnabled)
+                .OrderBy(currency => currency.CurrencyId).Select(currency => currency.CurrencyId).ToListAsync()
+        });
+    }
+
+    [HttpPut("currencies")]
+    public async Task<ActionResult<TenantCurrenciesDto>> SetCurrencies(TenantCurrenciesDto dto)
+    {
+        if (_tenant.TenantId is not int id) return Forbid();
+        var currencyIds = dto.CurrencyIds.Distinct().ToList();
+        if (!currencyIds.Any()) return BadRequest("Enable at least one currency.");
+        if (await _db.Currencies.CountAsync(currency => currency.IsActive && currencyIds.Contains(currency.CurrencyId)) != currencyIds.Count)
+            return BadRequest("Select active PeopleOS currencies only.");
+        var tenant = await _db.Tenants.SingleOrDefaultAsync(item => item.TenantId == id);
+        if (tenant == null) return NotFound();
+        if (!currencyIds.Contains(tenant.DefaultCurrencyId))
+            return BadRequest("The default currency must remain enabled.");
+        var existing = await _db.TenantCurrencies.Where(currency => currency.TenantId == id).ToListAsync();
+        foreach (var currency in existing) currency.IsEnabled = currencyIds.Contains(currency.CurrencyId);
+        foreach (var currencyId in currencyIds.Where(currencyId => existing.All(currency => currency.CurrencyId != currencyId)))
+            _db.TenantCurrencies.Add(new TenantCurrency { TenantId = id, CurrencyId = currencyId });
+        await _db.SaveChangesAsync();
+        return Ok(new TenantCurrenciesDto { CurrencyIds = currencyIds.OrderBy(currencyId => currencyId).ToList() });
     }
 
     private static object ProfileResponse(Tenant tenant) => new
     {
         tenant.TenantId, tenant.Name, tenant.Code, tenant.Country, tenant.Currency, tenant.TimeZone,
-        tenant.CountryCode, tenant.CurrencyCode, tenant.TimeZoneId, tenant.DateFormat, tenant.NumberFormat,
+        tenant.DefaultCountryId, tenant.DefaultCurrencyId, tenant.DefaultTimeZoneId, tenant.DateFormat, tenant.NumberFormat,
         tenant.Status, tenant.LifecycleStatus
     };
 
     private static bool IsValidProfile(Tenant tenant)
     {
-        if (tenant.CountryCode.Length != 2 || tenant.CurrencyCode.Length != 3 ||
+        if (tenant.DefaultCountryId <= 0 || tenant.DefaultCurrencyId <= 0 ||
             string.IsNullOrWhiteSpace(tenant.DateFormat) || string.IsNullOrWhiteSpace(tenant.NumberFormat))
             return false;
-        try { _ = TimeZoneInfo.FindSystemTimeZoneById(tenant.TimeZoneId); }
+        try { _ = TimeZoneInfo.FindSystemTimeZoneById(tenant.DefaultTimeZoneId); }
         catch (TimeZoneNotFoundException) { return false; }
         catch (InvalidTimeZoneException) { return false; }
         return true;

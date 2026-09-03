@@ -7,6 +7,8 @@
 
         public DateTime JoiningDate { get; set; }
         public string Category { get; set; }
+        public int? EmployeeCategoryId { get; set; }
+        public int? DesignationId { get; set; }
         public string OfferDesignation { get; set; }
         public string MOLDesignation { get; set; }
 
@@ -53,6 +55,8 @@
 
         public DateTime JoiningDate { get; set; }
         public string Category { get; set; }
+        public int? EmployeeCategoryId { get; set; }
+        public int? DesignationId { get; set; }
         public string OfferDesignation { get; set; }
         public string MOLDesignation { get; set; }
 
@@ -96,6 +100,8 @@
 
         public DateTime JoiningDate { get; set; }
         public string Category { get; set; }
+        public int? EmployeeCategoryId { get; set; }
+        public int? DesignationId { get; set; }
         public string OfferDesignation { get; set; }
         public string MOLDesignation { get; set; }
 

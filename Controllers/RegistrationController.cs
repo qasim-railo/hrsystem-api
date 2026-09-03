@@ -31,6 +31,11 @@ public class RegistrationController : ControllerBase
     {
         var registrationNumber = dto.CommercialRegistrationNumber.Trim();
         var administratorEmail = dto.AdministratorEmail.Trim().ToLowerInvariant();
+        var countryCode = dto.Country.Trim().ToUpperInvariant();
+        var country = await _db.Countries.AsNoTracking()
+            .SingleOrDefaultAsync(item => item.Code == countryCode && item.IsActive);
+        if (country == null)
+            return BadRequest("Select an active PeopleOS country.");
         if (await _db.Companies.IgnoreQueryFilters().AnyAsync(c => c.CommercialRegistrationNumber == registrationNumber))
             return Conflict("A company with this commercial registration number is already registered.");
         if (await _db.Users.IgnoreQueryFilters().AnyAsync(u => u.Username.ToLower() == administratorEmail))
@@ -40,6 +45,12 @@ public class RegistrationController : ControllerBase
         if (await _db.Tenants.AnyAsync(t => t.Code == code))
             return Conflict("This company registration already has a tenant.");
 
+        var currency = await _db.Currencies.AsNoTracking().SingleAsync(item => item.Code == (country.Code == "QA" ? "QAR" : "USD"));
+        var timeZone = await _db.TimeZones.AsNoTracking()
+            .OrderBy(item => item.DisplayName)
+            .FirstOrDefaultAsync(item => item.CountryCode == country.Code && item.IsActive);
+        if (timeZone == null)
+            return BadRequest("The selected PeopleOS country does not have an active time zone configured.");
         await using var transaction = await _db.Database.BeginTransactionAsync();
         var tenant = new Tenant
         {
@@ -47,12 +58,15 @@ public class RegistrationController : ControllerBase
             Code = code,
             Status = "Trial",
             LifecycleStatus = "Onboarding",
-            Country = dto.Country.Trim().ToUpperInvariant(),
-            Currency = dto.Country.Equals("QA", StringComparison.OrdinalIgnoreCase) ? "QAR" : "USD",
-            TimeZone = dto.Country.Equals("QA", StringComparison.OrdinalIgnoreCase) ? "Asia/Qatar" : "UTC",
-            CountryCode = dto.Country.Trim().ToUpperInvariant(),
-            CurrencyCode = dto.Country.Equals("QA", StringComparison.OrdinalIgnoreCase) ? "QAR" : "USD",
-            TimeZoneId = dto.Country.Equals("QA", StringComparison.OrdinalIgnoreCase) ? "Asia/Qatar" : "UTC",
+            Country = country.Code,
+            Currency = country.Code == "QA" ? "QAR" : "USD",
+            TimeZone = timeZone.TimeZoneId,
+            CountryCode = country.Code,
+            CurrencyCode = country.Code == "QA" ? "QAR" : "USD",
+            TimeZoneId = timeZone.TimeZoneId,
+            DefaultCountryId = country.CountryId,
+            DefaultCurrencyId = currency.CurrencyId,
+            DefaultTimeZoneId = timeZone.TimeZoneId,
             TrialStartDate = DateTime.UtcNow,
             TrialEndDate = DateTime.UtcNow.AddDays(14),
             PlanId = 1,
@@ -60,6 +74,12 @@ public class RegistrationController : ControllerBase
         };
         _db.Tenants.Add(tenant);
         await _db.SaveChangesAsync();
+        _db.TenantCurrencies.Add(new TenantCurrency { TenantId = tenant.TenantId, CurrencyId = tenant.DefaultCurrencyId });
+        _db.EmployeeCategories.AddRange(
+            new EmployeeCategory { TenantId = tenant.TenantId, Name = "Labor", Code = "LABOR", SortOrder = 10 },
+            new EmployeeCategory { TenantId = tenant.TenantId, Name = "Staff", Code = "STAFF", SortOrder = 20 },
+            new EmployeeCategory { TenantId = tenant.TenantId, Name = "Executive Staff", Code = "EXECUTIVE_STAFF", SortOrder = 30 },
+            new EmployeeCategory { TenantId = tenant.TenantId, Name = "Managerial", Code = "MANAGERIAL", SortOrder = 40 });
         _db.Subscriptions.Add(new Subscription
         {
             TenantId = tenant.TenantId,

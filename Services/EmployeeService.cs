@@ -112,6 +112,7 @@ namespace HRSystem.API.Services
                 PassportCountry = e.PassportCountry,
                 PhotoPath = e.PhotoPath,
                 Status = e.Status,
+                RecordStatus = e.RecordStatus,
                 CompanyName = e.Company?.Name ?? string.Empty,
                 DepartmentName = e.Department?.Name ?? string.Empty,
                 Category = e.EmploymentDetail?.Category ?? string.Empty,
@@ -225,6 +226,7 @@ namespace HRSystem.API.Services
                 PassportCountry = dto.PassportCountry,
                 PhotoPath = dto.PhotoPath,
                 Status = dto.Status
+                , RecordStatus = EmployeeRecordStatus.Draft
             };
 
             _context.Employees.Add(entity);
@@ -233,6 +235,197 @@ namespace HRSystem.API.Services
 
             dto.EmployeeId = entity.EmployeeId;
             return dto;
+        }
+
+        public async Task<EmployeeDto> CreateInitialAsync(InitialEmployeeDto dto)
+        {
+            var department = await _context.Department
+                .SingleOrDefaultAsync(item => item.DepartmentId == dto.DepartmentId);
+            if (department == null || department.CompanyId != dto.CompanyId)
+                throw new InvalidOperationException("The department does not belong to the selected company.");
+
+            var companyExists = await _context.Companies.AnyAsync(item => item.CompanyId == dto.CompanyId);
+            if (!companyExists)
+                throw new InvalidOperationException("Invalid CompanyId.");
+
+            var category = await _context.EmployeeCategories
+                .SingleOrDefaultAsync(item => item.EmployeeCategoryId == dto.EmployeeCategoryId && item.IsActive);
+            if (category == null)
+                throw new InvalidOperationException("Select an active tenant category.");
+
+            var designation = await _context.Positions
+                .SingleOrDefaultAsync(item => item.PositionId == dto.DesignationId && item.IsActive);
+            if (designation == null)
+                throw new InvalidOperationException("Select an active tenant designation.");
+            if (designation.DepartmentId.HasValue && designation.DepartmentId != dto.DepartmentId)
+                throw new InvalidOperationException("The designation is not available for the selected department.");
+            if (designation.EmployeeCategoryId.HasValue && designation.EmployeeCategoryId != dto.EmployeeCategoryId)
+                throw new InvalidOperationException("The designation is not available for the selected category.");
+
+            var employee = new Employee
+            {
+                CompanyId = dto.CompanyId,
+                DepartmentId = dto.DepartmentId,
+                PositionId = designation.PositionId,
+                EmployeeCode = await _numbering.NextAsync("employee"),
+                FirstName = dto.FirstName.Trim(),
+                LastName = dto.LastName.Trim(),
+                DateOfBirth = DateTime.MinValue,
+                Gender = string.Empty,
+                Nationality = dto.Nationality.Trim().ToUpperInvariant(),
+                MotherName = string.Empty,
+                HomeCountryAddress = string.Empty,
+                HomeCountryPhone = dto.Phone.Trim(),
+                EmergencyContactName = string.Empty,
+                EmergencyPhone = string.Empty,
+                Email = dto.Email.Trim(),
+                PassportNumber = string.Empty,
+                PassportExpiry = DateTime.MinValue,
+                PassportCountry = string.Empty,
+                PhotoPath = string.Empty,
+                Status = EmployeeStatus.Draft,
+                RecordStatus = EmployeeRecordStatus.Draft
+            };
+
+            _context.Employees.Add(employee);
+            await _context.SaveChangesAsync();
+
+            _context.EmploymentDetails.Add(new EmploymentDetail
+            {
+                EmployeeId = employee.EmployeeId,
+                JoiningDate = DateTime.UtcNow.Date,
+                EmployeeCategoryId = category.EmployeeCategoryId,
+                Category = category.Name,
+                OfferDesignation = designation.Name,
+                MOLDesignation = string.Empty,
+                SalaryMode = string.Empty,
+                BankDetails = string.Empty,
+                BankAccountNo = string.Empty,
+                IBAN = string.Empty,
+                WorkLocation = string.Empty,
+                ContractType = string.Empty,
+                OtherSalaryDetails = string.Empty,
+                VisaNo = string.Empty,
+                EmiratesId = string.Empty,
+                LaborCardNo = string.Empty,
+                Remarks = string.Empty,
+                IsActive = true
+            });
+            await _context.SaveChangesAsync();
+            await _customFields.ValidateAndSaveAsync(employee.EmployeeId, dto.CustomFields);
+
+            return new EmployeeDto
+            {
+                EmployeeId = employee.EmployeeId,
+                CompanyId = employee.CompanyId,
+                DepartmentId = employee.DepartmentId,
+                EmployeeCode = employee.EmployeeCode,
+                FirstName = employee.FirstName,
+                LastName = employee.LastName,
+                Nationality = employee.Nationality,
+                HomeCountryPhone = employee.HomeCountryPhone,
+                Email = employee.Email,
+                Status = employee.Status,
+                RecordStatus = employee.RecordStatus,
+                Category = category.Name,
+                Designation = designation.Name
+            };
+        }
+
+        public async Task<EmployeeDto> UpdateInitialAsync(int id, InitialEmployeeDto dto)
+        {
+            var employee = await _context.Employees.Include(item => item.EmploymentDetail)
+                .SingleOrDefaultAsync(item => item.EmployeeId == id);
+            if (employee == null)
+                return null;
+
+            var department = await _context.Department
+                .SingleOrDefaultAsync(item => item.DepartmentId == dto.DepartmentId);
+            if (department == null || department.CompanyId != dto.CompanyId)
+                throw new InvalidOperationException("The department does not belong to the selected company.");
+
+            if (!await _context.Companies.AnyAsync(item => item.CompanyId == dto.CompanyId))
+                throw new InvalidOperationException("Invalid CompanyId.");
+
+            var category = await _context.EmployeeCategories
+                .SingleOrDefaultAsync(item => item.EmployeeCategoryId == dto.EmployeeCategoryId && item.IsActive);
+            if (category == null)
+                throw new InvalidOperationException("Select an active tenant category.");
+
+            var designation = await _context.Positions
+                .SingleOrDefaultAsync(item => item.PositionId == dto.DesignationId && item.IsActive);
+            if (designation == null)
+                throw new InvalidOperationException("Select an active tenant designation.");
+            if (designation.DepartmentId.HasValue && designation.DepartmentId != dto.DepartmentId)
+                throw new InvalidOperationException("The designation is not available for the selected department.");
+            if (designation.EmployeeCategoryId.HasValue && designation.EmployeeCategoryId != dto.EmployeeCategoryId)
+                throw new InvalidOperationException("The designation is not available for the selected category.");
+            if (employee.EmploymentDetail == null)
+                throw new InvalidOperationException("The employee employment record is missing.");
+
+            employee.CompanyId = dto.CompanyId;
+            employee.DepartmentId = dto.DepartmentId;
+            employee.PositionId = designation.PositionId;
+            employee.FirstName = dto.FirstName.Trim();
+            employee.LastName = dto.LastName.Trim();
+            employee.Email = dto.Email.Trim();
+            employee.HomeCountryPhone = dto.Phone.Trim();
+            employee.Nationality = dto.Nationality.Trim().ToUpperInvariant();
+            employee.EmploymentDetail.EmployeeCategoryId = category.EmployeeCategoryId;
+            employee.EmploymentDetail.Category = category.Name;
+            employee.EmploymentDetail.OfferDesignation = designation.Name;
+
+            await _context.SaveChangesAsync();
+            await _customFields.ValidateAndSaveAsync(employee.EmployeeId, dto.CustomFields);
+
+            return new EmployeeDto
+            {
+                EmployeeId = employee.EmployeeId,
+                CompanyId = employee.CompanyId,
+                DepartmentId = employee.DepartmentId,
+                EmployeeCode = employee.EmployeeCode,
+                FirstName = employee.FirstName,
+                LastName = employee.LastName,
+                Nationality = employee.Nationality,
+                HomeCountryPhone = employee.HomeCountryPhone,
+                Email = employee.Email,
+                Status = employee.Status,
+                RecordStatus = employee.RecordStatus,
+                Category = category.Name,
+                Designation = designation.Name
+            };
+        }
+
+        public async Task<int?> SubmitForApprovalAsync(int employeeId, int workflowId, int requestedByUserId)
+        {
+            var employee = await _context.Employees.SingleOrDefaultAsync(x => x.EmployeeId == employeeId);
+            if (employee == null || employee.RecordStatus != EmployeeRecordStatus.Draft) return null;
+            var workflow = await _context.ApprovalWorkflows.Include(x => x.Steps)
+                .SingleOrDefaultAsync(x => x.Id == workflowId && x.IsActive && x.Module == "Employee");
+            if (workflow == null || workflow.Steps.Count == 0) throw new InvalidOperationException("Select an active Employee workflow with at least one step.");
+
+            var request = new ApprovalRequest
+            {
+                ApprovalWorkflowId = workflow.Id,
+                Module = workflow.Module,
+                RequestType = workflow.RequestType,
+                Reference = $"employee:{employee.EmployeeId}",
+                RequestedByUserId = requestedByUserId,
+                CurrentStepOrder = workflow.Steps.Min(x => x.StepOrder)
+            };
+            employee.RecordStatus = EmployeeRecordStatus.PendingApproval;
+            _context.ApprovalRequests.Add(request);
+            await _context.SaveChangesAsync();
+            return request.Id;
+        }
+
+        public async Task<bool> SetRecordStatusAsync(int employeeId, EmployeeRecordStatus status)
+        {
+            var employee = await _context.Employees.SingleOrDefaultAsync(x => x.EmployeeId == employeeId);
+            if (employee == null) return false;
+            employee.RecordStatus = status;
+            await _context.SaveChangesAsync();
+            return true;
         }
 
         public async Task<EmployeeDto> UpdateAsync(int id, EmployeeDto dto)

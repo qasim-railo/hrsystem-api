@@ -1,5 +1,8 @@
 using HRSystem.API.DTOs;
+using HRSystem.API.Data;
 using HRSystem.API.Services;
+using System.Security.Claims;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,11 +15,13 @@ namespace HRSystem.API.Controllers
     {
         private readonly IEmployeeService _service;
         private readonly IAuditService _audit;
+        private readonly AppDbContext _db;
 
-        public EmployeesController(IEmployeeService service, IAuditService audit)
+        public EmployeesController(IEmployeeService service, IAuditService audit, AppDbContext db)
         {
             _service = service;
             _audit = audit;
+            _db = db;
         }
 
         [HttpGet]
@@ -166,6 +171,53 @@ namespace HRSystem.API.Controllers
             return CreatedAtAction(nameof(Get), new { id = result.EmployeeId }, result);
         }
 
+        [HttpPost("initial")]
+        [Authorize(Policy = "Employees.Create")]
+        public async Task<IActionResult> CreateInitial(InitialEmployeeDto dto)
+        {
+            var duplicate = await _service.DuplicateCheckAsync(new DuplicateCheckDto
+            {
+                Email = dto.Email,
+                FirstName = dto.FirstName,
+                LastName = dto.LastName
+            });
+            if (duplicate.HasPotentialDuplicates)
+                return Conflict(duplicate);
+
+            try
+            {
+                var result = await _service.CreateInitialAsync(dto);
+                return CreatedAtAction(nameof(Get), new { id = result.EmployeeId }, result);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpPut("{id}/initial")]
+        [Authorize(Policy = "Employees.Edit")]
+        public async Task<IActionResult> UpdateInitial(int id, InitialEmployeeDto dto)
+        {
+            try
+            {
+                var result = await _service.UpdateInitialAsync(id, dto);
+                return result == null ? NotFound() : Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
         [HttpPost("duplicate-check")]
         [Authorize(Policy = "Employees.View")]
         public async Task<IActionResult> DuplicateCheck(DuplicateCheckDto dto)
@@ -183,6 +235,7 @@ namespace HRSystem.API.Controllers
             {
                 result = await _service.UpdateAsync(id, dto);
             }
+
             catch (ArgumentException ex)
             {
                 return BadRequest(ex.Message);
@@ -194,6 +247,27 @@ namespace HRSystem.API.Controllers
             if (result == null) return NotFound();
             return Ok(result);
         }
+
+        [HttpPost("{id}/submit-for-approval")]
+        [Authorize(Policy = "Employees.Edit")]
+        public async Task<IActionResult> SubmitForApproval(int id, SubmitEmployeeForApprovalDto dto)
+        {
+            var requestedByUserId = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub"), out var userId) ? userId : 0;
+            try
+            {
+                var requestId = await _service.SubmitForApprovalAsync(id, dto.WorkflowId, requestedByUserId);
+                if (requestId == null) return Conflict("Only draft employee records can be submitted for approval.");
+                await _audit.LogAsync("SubmitForApproval", "Employee", id.ToString(), User.Identity?.Name ?? "", System.Text.Json.JsonSerializer.Serialize(dto));
+                return Ok(new { requestId });
+            }
+            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+        }
+
+        [HttpGet("approval-workflows")]
+        [Authorize(Policy = "Employees.Edit")]
+        public async Task<IActionResult> EmployeeApprovalWorkflows() =>
+            Ok(await _db.ApprovalWorkflows.Where(x => x.IsActive && x.Module == "Employee")
+                .OrderBy(x => x.Name).Select(x => new { x.Id, x.Name, x.RequestType }).ToListAsync());
 
         [HttpPut("{id}/status")]
         [Authorize(Policy = "Employees.ChangeStatus")]

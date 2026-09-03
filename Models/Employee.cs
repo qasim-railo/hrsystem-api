@@ -37,6 +37,7 @@ namespace HRSystem.API.Models
 
             // New canonical status for employee
             public EmployeeStatus Status { get; set; } = EmployeeStatus.Draft;
+            public EmployeeRecordStatus RecordStatus { get; set; } = EmployeeRecordStatus.Draft;
             public DateTime? ArchivedAt { get; set; }
 
             public EmploymentDetail EmploymentDetail { get; set; }

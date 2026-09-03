@@ -16,6 +16,10 @@ namespace HRSystem.API.Data
         }
 
         public DbSet<Tenant> Tenants { get; set; }
+        public DbSet<Country> Countries { get; set; }
+        public DbSet<Currency> Currencies { get; set; }
+        public DbSet<TimeZoneMaster> TimeZones { get; set; }
+        public DbSet<TenantCurrency> TenantCurrencies { get; set; }
         public DbSet<Plan> Plans { get; set; }
         public DbSet<PlanFeature> PlanFeatures { get; set; }
         public DbSet<Subscription> Subscriptions { get; set; }
@@ -26,6 +30,7 @@ namespace HRSystem.API.Data
         public DbSet<Section> Sections { get; set; }
         public DbSet<Team> Teams { get; set; }
         public DbSet<Position> Positions { get; set; }
+        public DbSet<EmployeeCategory> EmployeeCategories { get; set; }
 
         public DbSet<Department> Department { get; set; }
         public DbSet<Employee> Employees { get; set; }
@@ -62,7 +67,10 @@ namespace HRSystem.API.Data
                         public DbSet<PayrollComponent> PayrollComponents { get; set; }
                         public DbSet<PayrollComponentSnapshot> PayrollComponentSnapshots { get; set; }
                         public DbSet<OvertimePolicy> OvertimePolicies { get; set; }
+                        public DbSet<OvertimeType> OvertimeTypes { get; set; }
+                        public DbSet<OvertimePolicyAssignment> OvertimePolicyAssignments { get; set; }
                         public DbSet<AttendanceConfiguration> AttendanceConfigurations { get; set; }
+                        public DbSet<TenantWorkingDay> TenantWorkingDays { get; set; }
                         public DbSet<AttendanceImportLog> AttendanceImportLogs { get; set; }
                         public DbSet<ImportJob> ImportJobs { get; set; }
                         public DbSet<IntegrationConnection> IntegrationConnections { get; set; }
@@ -116,6 +124,15 @@ namespace HRSystem.API.Data
                 protected override void OnModelCreating(ModelBuilder modelBuilder)
                 {
                     modelBuilder.Entity<Tenant>().HasIndex(t => t.Code).IsUnique();
+                    modelBuilder.Entity<Country>().HasIndex(country => country.Code).IsUnique();
+                    modelBuilder.Entity<Currency>().HasIndex(currency => currency.Code).IsUnique();
+                    modelBuilder.Entity<TimeZoneMaster>().HasKey(timeZone => timeZone.TimeZoneId);
+                    modelBuilder.Entity<TenantCurrency>().HasIndex(currency => new { currency.TenantId, currency.CurrencyId }).IsUnique();
+                    modelBuilder.Entity<TenantWorkingDay>().HasIndex(day => new { day.TenantId, day.DayOfWeek }).IsUnique();
+                    modelBuilder.Entity<Tenant>().HasOne(tenant => tenant.DefaultCountry).WithMany().HasForeignKey(tenant => tenant.DefaultCountryId).OnDelete(DeleteBehavior.Restrict);
+                    modelBuilder.Entity<Tenant>().HasOne(tenant => tenant.DefaultCurrency).WithMany().HasForeignKey(tenant => tenant.DefaultCurrencyId).OnDelete(DeleteBehavior.Restrict);
+                    modelBuilder.Entity<Tenant>().HasOne(tenant => tenant.DefaultTimeZone).WithMany().HasForeignKey(tenant => tenant.DefaultTimeZoneId).OnDelete(DeleteBehavior.Restrict);
+                    modelBuilder.Entity<TenantCurrency>().HasOne(tenantCurrency => tenantCurrency.Currency).WithMany().HasForeignKey(tenantCurrency => tenantCurrency.CurrencyId).OnDelete(DeleteBehavior.Restrict);
                     modelBuilder.Entity<Plan>().HasIndex(p => p.Code).IsUnique();
                     modelBuilder.Entity<PlanFeature>().HasIndex(f => new { f.PlanId, f.FeatureCode }).IsUnique();
                     modelBuilder.Entity<Company>().HasIndex(x => new { x.TenantId, x.Name }).IsUnique();
@@ -125,6 +142,16 @@ namespace HRSystem.API.Data
                     modelBuilder.Entity<Section>().HasIndex(x => new { x.TenantId, x.DepartmentId, x.Name }).IsUnique();
                     modelBuilder.Entity<Team>().HasIndex(x => new { x.TenantId, x.SectionId, x.Name }).IsUnique();
                     modelBuilder.Entity<Position>().HasIndex(x => new { x.TenantId, x.TeamId, x.Name }).IsUnique();
+                    modelBuilder.Entity<EmployeeCategory>().HasIndex(x => new { x.TenantId, x.Name }).IsUnique();
+                    modelBuilder.Entity<EmployeeCategory>().HasIndex(x => new { x.TenantId, x.Code }).IsUnique();
+                    modelBuilder.Entity<EmploymentDetail>().HasOne(x => x.EmployeeCategory).WithMany().HasForeignKey(x => x.EmployeeCategoryId).OnDelete(DeleteBehavior.Restrict);
+                    modelBuilder.Entity<Position>().HasOne(x => x.EmployeeCategory).WithMany().HasForeignKey(x => x.EmployeeCategoryId).OnDelete(DeleteBehavior.Restrict);
+                    modelBuilder.Entity<Position>().HasOne(x => x.Department).WithMany().HasForeignKey(x => x.DepartmentId).OnDelete(DeleteBehavior.Restrict);
+                    modelBuilder.Entity<OvertimeType>().HasIndex(x => new { x.TenantId, x.Code }).IsUnique();
+                    modelBuilder.Entity<OvertimePolicy>().HasOne(x => x.OvertimeType).WithMany().HasForeignKey(x => x.OvertimeTypeId).OnDelete(DeleteBehavior.Restrict);
+                    modelBuilder.Entity<OvertimeType>().HasOne(x => x.PayrollComponent).WithMany().HasForeignKey(x => x.PayrollComponentId).OnDelete(DeleteBehavior.Restrict);
+                    modelBuilder.Entity<OvertimePolicyAssignment>().HasIndex(x => new { x.TenantId, x.OvertimePolicyId, x.Scope, x.TargetId, x.EffectiveFrom }).IsUnique();
+                    modelBuilder.Entity<OvertimePolicyAssignment>().HasOne(x => x.OvertimePolicy).WithMany().HasForeignKey(x => x.OvertimePolicyId).OnDelete(DeleteBehavior.Restrict);
                     modelBuilder.Entity<NotificationTemplate>().HasIndex(x => new { x.TenantId, x.EventCode, x.Channel }).IsUnique();
                     modelBuilder.Entity<Plan>().HasMany(p => p.Features).WithOne(f => f.Plan).HasForeignKey(f => f.PlanId);
                     modelBuilder.Entity<Tenant>().HasOne(t => t.Plan).WithMany(p => p.Tenants).HasForeignKey(t => t.PlanId).OnDelete(DeleteBehavior.Restrict);
@@ -160,6 +187,31 @@ namespace HRSystem.API.Data
                     modelBuilder.Entity<Plan>().HasData(
                         new Plan { PlanId = 1, Code = "ESSENTIAL", Name = "PeopleOS Essential", MaxEmployees = 50, MaxUsers = 10, MaxBranches = 1, MaxStorageBytes = 5L * 1024 * 1024 * 1024 },
                         new Plan { PlanId = 2, Code = "PROFESSIONAL", Name = "PeopleOS Professional", MaxEmployees = 250, MaxUsers = 50, MaxBranches = 10, MaxStorageBytes = 25L * 1024 * 1024 * 1024 });
+                    modelBuilder.Entity<Country>().HasData(
+                        new Country { CountryId = 1, Code = "QA", Name = "Qatar", IsActive = true },
+                        new Country { CountryId = 2, Code = "AE", Name = "United Arab Emirates", IsActive = true },
+                        new Country { CountryId = 3, Code = "SA", Name = "Saudi Arabia", IsActive = true },
+                        new Country { CountryId = 4, Code = "IN", Name = "India", IsActive = true },
+                        new Country { CountryId = 5, Code = "PK", Name = "Pakistan", IsActive = true },
+                        new Country { CountryId = 6, Code = "GB", Name = "United Kingdom", IsActive = true },
+                        new Country { CountryId = 7, Code = "US", Name = "United States", IsActive = true });
+                    modelBuilder.Entity<Currency>().HasData(
+                        new Currency { CurrencyId = 1, Code = "QAR", Name = "Qatari Riyal", Symbol = "QAR", DecimalPlaces = 2, IsActive = true },
+                        new Currency { CurrencyId = 2, Code = "AED", Name = "UAE Dirham", Symbol = "AED", DecimalPlaces = 2, IsActive = true },
+                        new Currency { CurrencyId = 3, Code = "SAR", Name = "Saudi Riyal", Symbol = "SAR", DecimalPlaces = 2, IsActive = true },
+                        new Currency { CurrencyId = 4, Code = "USD", Name = "US Dollar", Symbol = "$", DecimalPlaces = 2, IsActive = true },
+                        new Currency { CurrencyId = 5, Code = "GBP", Name = "Pound Sterling", Symbol = "£", DecimalPlaces = 2, IsActive = true },
+                        new Currency { CurrencyId = 6, Code = "INR", Name = "Indian Rupee", Symbol = "₹", DecimalPlaces = 2, IsActive = true },
+                        new Currency { CurrencyId = 7, Code = "PKR", Name = "Pakistani Rupee", Symbol = "Rs", DecimalPlaces = 2, IsActive = true });
+                    modelBuilder.Entity<TimeZoneMaster>().HasData(
+                        new TimeZoneMaster { TimeZoneId = "Asia/Qatar", DisplayName = "Qatar (Asia/Qatar)", CountryCode = "QA", IsActive = true },
+                        new TimeZoneMaster { TimeZoneId = "Asia/Dubai", DisplayName = "United Arab Emirates (Asia/Dubai)", CountryCode = "AE", IsActive = true },
+                        new TimeZoneMaster { TimeZoneId = "Asia/Riyadh", DisplayName = "Saudi Arabia (Asia/Riyadh)", CountryCode = "SA", IsActive = true },
+                        new TimeZoneMaster { TimeZoneId = "Asia/Kolkata", DisplayName = "India (Asia/Kolkata)", CountryCode = "IN", IsActive = true },
+                        new TimeZoneMaster { TimeZoneId = "Asia/Karachi", DisplayName = "Pakistan (Asia/Karachi)", CountryCode = "PK", IsActive = true },
+                        new TimeZoneMaster { TimeZoneId = "Europe/London", DisplayName = "United Kingdom (Europe/London)", CountryCode = "GB", IsActive = true },
+                        new TimeZoneMaster { TimeZoneId = "America/New_York", DisplayName = "United States Eastern (America/New_York)", CountryCode = "US", IsActive = true },
+                        new TimeZoneMaster { TimeZoneId = "UTC", DisplayName = "Coordinated Universal Time (UTC)", IsActive = true });
                     var essentialFeatures = new[] { "EMPLOYEE_MANAGEMENT", "DOCUMENTS", "LEAVE", "ATTENDANCE", "SHIFTS", "BASIC_PAYROLL", "PAYSLIPS", "STANDARD_REPORTS", "EMPLOYEE_SELF_SERVICE" };
                     var professionalFeatures = new[] { "EMPLOYEE_MANAGEMENT", "DOCUMENTS", "LEAVE", "ATTENDANCE", "SHIFTS", "BASIC_PAYROLL", "PAYSLIPS", "STANDARD_REPORTS", "EMPLOYEE_SELF_SERVICE", "LOANS", "OVERTIME", "ASSETS", "GRATUITY", "FINAL_SETTLEMENT", "ADVANCED_REPORTS", "CUSTOM_ROLES", "WORKFLOWS", "ORGANIZATION_CHART", "EXPIRY_ALERTS", "ADVANCED_AUDIT" };
                     modelBuilder.Entity<PlanFeature>().HasData(
@@ -176,7 +228,7 @@ namespace HRSystem.API.Data
                         typeof(EmployeeStatusHistory), typeof(AuditLog), typeof(Branch), typeof(Section), typeof(Team), typeof(Position)
                         , typeof(EmployeeEmploymentHistory), typeof(TenantSetting), typeof(TenantLeaveType), typeof(OnboardingProgress),
                         typeof(CustomFieldDefinition), typeof(CustomFieldValue), typeof(FileRecord)
-                        ,                                                 typeof(NumberingSequence), typeof(ApprovalWorkflow), typeof(ApprovalRequest), typeof(ApprovalAction), typeof(PayrollComponent), typeof(PayrollComponentSnapshot), typeof(OvertimePolicy), typeof(AttendanceConfiguration), typeof(AttendanceImportLog), typeof(NotificationTemplate), typeof(Notification), typeof(IntegrationConnection), typeof(SupportArticle), typeof(SupportTicket), typeof(SupportTicketMessage), typeof(SupportTicketAttachment)
+                        ,                                                 typeof(NumberingSequence), typeof(ApprovalWorkflow), typeof(ApprovalRequest), typeof(ApprovalAction), typeof(PayrollComponent), typeof(PayrollComponentSnapshot), typeof(OvertimePolicy), typeof(AttendanceConfiguration), typeof(TenantWorkingDay), typeof(AttendanceImportLog), typeof(NotificationTemplate), typeof(Notification), typeof(IntegrationConnection), typeof(SupportArticle), typeof(SupportTicket), typeof(SupportTicketMessage), typeof(SupportTicketAttachment)
                     })
                     {
                         modelBuilder.Entity(entityType).Property<int>(nameof(ITenantOwned.TenantId));
@@ -221,6 +273,7 @@ namespace HRSystem.API.Data
                     modelBuilder.Entity<PayrollComponentSnapshot>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
                     modelBuilder.Entity<PayrollComponent>().HasIndex(x => new { x.TenantId, x.Code }).IsUnique();
                     modelBuilder.Entity<PayrollComponentSnapshot>().HasOne(x => x.Payroll).WithMany(x => x.ComponentSnapshots).HasForeignKey(x => x.PayrollId).OnDelete(DeleteBehavior.Restrict);
+                    modelBuilder.Entity<TenantWorkingDay>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
                     modelBuilder.Entity<OvertimePolicy>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);
                     modelBuilder.Entity<OvertimePolicy>().HasIndex(x => new { x.TenantId, x.Name, x.EffectiveFrom });
                     modelBuilder.Entity<TenantLeaveType>().HasQueryFilter(x => _currentTenant == null || _currentTenant.TenantId == null || _currentTenant.IsPlatformAdmin || _currentTenant.TenantId == x.TenantId);

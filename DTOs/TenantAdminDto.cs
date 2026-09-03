@@ -6,9 +6,9 @@ public class TenantProfileDto
     public string? Country { get; set; }
     public string? Currency { get; set; }
     public string? TimeZone { get; set; }
-    public string? CountryCode { get; set; }
-    public string? CurrencyCode { get; set; }
-    public string? TimeZoneId { get; set; }
+    public int? DefaultCountryId { get; set; }
+    public int? DefaultCurrencyId { get; set; }
+    public string? DefaultTimeZoneId { get; set; }
     public string? DateFormat { get; set; }
     public string? NumberFormat { get; set; }
 }

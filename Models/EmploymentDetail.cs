@@ -11,6 +11,8 @@ namespace HRSystem.API.Models
 
         public DateTime JoiningDate { get; set; }
         public string Category { get; set; } // Staff / Labor
+        public int? EmployeeCategoryId { get; set; }
+        public EmployeeCategory? EmployeeCategory { get; set; }
         public string OfferDesignation { get; set; }
         public string MOLDesignation { get; set; }
 

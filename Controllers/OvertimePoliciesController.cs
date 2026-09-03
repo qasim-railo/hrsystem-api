@@ -31,7 +31,7 @@ public class OvertimePoliciesController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<OvertimePolicyDto>> Create(SaveOvertimePolicyDto dto)
     {
-        var error = Validate(dto);
+        var error = await Validate(dto);
         if (error != null) return BadRequest(error);
         var policy = new OvertimePolicy();
         Apply(policy, dto);
@@ -43,7 +43,7 @@ public class OvertimePoliciesController : ControllerBase
     [HttpPut("{id:int}")]
     public async Task<ActionResult<OvertimePolicyDto>> Update(int id, SaveOvertimePolicyDto dto)
     {
-        var error = Validate(dto);
+        var error = await Validate(dto);
         if (error != null) return BadRequest(error);
         var policy = await _db.OvertimePolicies.SingleOrDefaultAsync(x => x.Id == id);
         if (policy == null) return NotFound();
@@ -52,18 +52,24 @@ public class OvertimePoliciesController : ControllerBase
         return Ok(Map(policy));
     }
 
-    private static string? Validate(SaveOvertimePolicyDto d) =>
+    private async Task<string?> Validate(SaveOvertimePolicyDto d)
+    {
+        if (d.OvertimeTypeId.HasValue && !await _db.OvertimeTypes.AnyAsync(x => x.Id == d.OvertimeTypeId && x.IsActive))
+            return "Select an active tenant overtime type.";
+        if (d.EffectiveTo < d.EffectiveFrom) return "Effective to date cannot precede effective from date.";
+        return
         string.IsNullOrWhiteSpace(d.Name) ? "Name is required." :
         d.RateMultiplier <= 0 || d.DailyThresholdMinutes < 0 || d.MaximumApprovedMinutes < 0 ? "Overtime values must be valid." :
         !new[] { "Normal Day", "Weekly Off", "Holiday", "Special", "Any" }.Contains(d.DayType) ? "Invalid day type." :
-        !new[] { "OT1", "OT2" }.Contains(d.Classification) ? "Classification must be OT1 or OT2." : null;
+        string.IsNullOrWhiteSpace(d.Classification) ? "Classification is required." : null;
+    }
     private static void Apply(OvertimePolicy x, SaveOvertimePolicyDto d)
     {
         x.Name = d.Name.Trim(); x.EmployeeCategory = d.EmployeeCategory?.Trim() ?? "*"; x.DayType = d.DayType;
-        x.Classification = d.Classification; x.RateMultiplier = d.RateMultiplier; x.DailyThresholdMinutes = d.DailyThresholdMinutes;
+        x.Classification = d.Classification; x.OvertimeTypeId = d.OvertimeTypeId; x.RateMultiplier = d.RateMultiplier; x.DailyThresholdMinutes = d.DailyThresholdMinutes;
         x.MaximumApprovedMinutes = d.MaximumApprovedMinutes; x.ApprovalRequired = d.ApprovalRequired; x.EffectiveFrom = d.EffectiveFrom.Date;
         x.EffectiveTo = d.EffectiveTo?.Date; x.IsActive = d.IsActive;
     }
-    private static OvertimePolicyDto Map(OvertimePolicy x) => new() { Id = x.Id, Name = x.Name, EmployeeCategory = x.EmployeeCategory, DayType = x.DayType, Classification = x.Classification, RateMultiplier = x.RateMultiplier, DailyThresholdMinutes = x.DailyThresholdMinutes, MaximumApprovedMinutes = x.MaximumApprovedMinutes, ApprovalRequired = x.ApprovalRequired, EffectiveFrom = x.EffectiveFrom, EffectiveTo = x.EffectiveTo, IsActive = x.IsActive };
-    private static readonly System.Linq.Expressions.Expression<Func<OvertimePolicy, OvertimePolicyDto>> MapExpression = x => new OvertimePolicyDto { Id = x.Id, Name = x.Name, EmployeeCategory = x.EmployeeCategory, DayType = x.DayType, Classification = x.Classification, RateMultiplier = x.RateMultiplier, DailyThresholdMinutes = x.DailyThresholdMinutes, MaximumApprovedMinutes = x.MaximumApprovedMinutes, ApprovalRequired = x.ApprovalRequired, EffectiveFrom = x.EffectiveFrom, EffectiveTo = x.EffectiveTo, IsActive = x.IsActive };
+    private static OvertimePolicyDto Map(OvertimePolicy x) => new() { Id = x.Id, Name = x.Name, EmployeeCategory = x.EmployeeCategory, DayType = x.DayType, Classification = x.Classification, OvertimeTypeId = x.OvertimeTypeId, RateMultiplier = x.RateMultiplier, DailyThresholdMinutes = x.DailyThresholdMinutes, MaximumApprovedMinutes = x.MaximumApprovedMinutes, ApprovalRequired = x.ApprovalRequired, EffectiveFrom = x.EffectiveFrom, EffectiveTo = x.EffectiveTo, IsActive = x.IsActive };
+    private static readonly System.Linq.Expressions.Expression<Func<OvertimePolicy, OvertimePolicyDto>> MapExpression = x => new OvertimePolicyDto { Id = x.Id, Name = x.Name, EmployeeCategory = x.EmployeeCategory, DayType = x.DayType, Classification = x.Classification, OvertimeTypeId = x.OvertimeTypeId, RateMultiplier = x.RateMultiplier, DailyThresholdMinutes = x.DailyThresholdMinutes, MaximumApprovedMinutes = x.MaximumApprovedMinutes, ApprovalRequired = x.ApprovalRequired, EffectiveFrom = x.EffectiveFrom, EffectiveTo = x.EffectiveTo, IsActive = x.IsActive };
 }

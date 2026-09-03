@@ -11,11 +11,15 @@ namespace HRSystem.API.Services
     {
         private readonly AppDbContext _context;
         private readonly IMapper _mapper;
+        private readonly TenantWorkingDayService _workingDays;
+        private readonly OvertimePolicyService _overtimePolicies;
 
-        public AttendanceService(AppDbContext context, IMapper mapper)
+        public AttendanceService(AppDbContext context, IMapper mapper, TenantWorkingDayService workingDays, OvertimePolicyService overtimePolicies)
         {
             _context = context;
             _mapper = mapper;
+            _workingDays = workingDays;
+            _overtimePolicies = overtimePolicies;
         }
 
         public async Task AddAsync(AttendanceDto dto)
@@ -124,11 +128,16 @@ namespace HRSystem.API.Services
         {
             var shift = await _context.EmployeeShifts
                 .Include(es => es.Shift)
-                .Where(es => es.EmployeeId == employeeId && es.Date == date)
+                .Where(es => es.EmployeeId == employeeId && es.Date == date.Date &&
+                    es.Shift.EffectiveFrom <= date.Date && (es.Shift.EffectiveTo == null || es.Shift.EffectiveTo >= date.Date))
                 .Select(es => es.Shift)
                 .FirstOrDefaultAsync();
 
             if (shift == null)
+                return (0, 0);
+
+            var workingDays = shift.WorkingDays.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (workingDays.Length > 0 && !workingDays.Contains(date.DayOfWeek.ToString(), StringComparer.OrdinalIgnoreCase))
                 return (0, 0);
 
             var shiftEnd = shift.EndTime;
@@ -138,14 +147,9 @@ namespace HRSystem.API.Services
 
             var overtimeMinutes = (int)(checkOut - shiftEnd).TotalMinutes;
 
-            var dayType = date.DayOfWeek == DayOfWeek.Friday || date.DayOfWeek == DayOfWeek.Saturday ? "Weekly Off" : "Normal Day";
-            var category = await _context.Employees.Where(x => x.EmployeeId == employeeId).Select(x => x.EmploymentDetail!.Category).SingleOrDefaultAsync() ?? "*";
-            var policies = await _context.OvertimePolicies.Where(x => x.IsActive && x.EffectiveFrom <= date && (x.EffectiveTo == null || x.EffectiveTo >= date) &&
-                (x.EmployeeCategory == "*" || x.EmployeeCategory == category) &&
-                (x.DayType == dayType || x.DayType == "Any"))
-                .OrderBy(x => x.DailyThresholdMinutes).ToListAsync();
+            var policies = await _overtimePolicies.GetActiveAsync(employeeId, date);
             if (policies.Count == 0)
-                return (Math.Min(overtimeMinutes, 120), Math.Max(overtimeMinutes - 120, 0));
+                return (0, 0);
             return OvertimePolicyService.Allocate(overtimeMinutes, policies);
         }
 
